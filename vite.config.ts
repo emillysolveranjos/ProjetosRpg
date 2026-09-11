@@ -1,10 +1,24 @@
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import type { Plugin } from "vite";
+
+function allowLocalNetworkAccess(): Plugin {
+  return {
+    name: "rulebear-local-network-access",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((_request, response, next) => {
+        response.setHeader("Access-Control-Allow-Private-Network", "true");
+        next();
+      });
+    },
+  };
+}
 
 export default defineConfig({
   base: "./",
-  plugins: [react()],
+  plugins: [allowLocalNetworkAccess(), react()],
   server: {
     cors: {
       origin: ["https://www.owlbear.rodeo", "https://extensions.owlbear.rodeo"],
