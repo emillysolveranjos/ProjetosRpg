@@ -2,10 +2,12 @@ import OBR, { isImage } from "@owlbear-rodeo/sdk";
 import { PLUGIN_ID, PENDING_TOKEN_KEY } from "../config";
 
 async function register(): Promise<void> {
+  const iconUrl = new URL("./action-icon.svg", window.location.href).href;
+  await OBR.action.setIcon(iconUrl);
   await OBR.contextMenu.create({
     id: `${PLUGIN_ID}/add-combatant`,
     icons: [{
-      icon: new URL("./icon.svg", window.location.href).href,
+      icon: iconUrl,
       label: "Adicionar à Rulebear",
       filter: {
         min: 1,
