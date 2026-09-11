@@ -36,3 +36,15 @@ Auditoria local: dois avisos moderados na cadeia do SDK Owlbear → uuid, sem co
 - [ ] confirmar manifesto, ícones, painel e background por HTTPS no caminho `/ProjetosRpg/`
 
 A submissão à loja está fora desta publicação por link. As capturas e o arquivo de catálogo são rascunhos para uma etapa futura.
+
+
+## Validação da publicação — 2026-09-11
+
+- Commit de publicação: `05536bf`.
+- Workflow manual: https://github.com/emillysolveranjos/ProjetosRpg/actions/runs/34645947260 — verificações, build e deploy concluídos com sucesso.
+- Lint, tipos e 40 testes passaram localmente; o workflow também passou no GitHub.
+- Build público: 118087 bytes de JavaScript/CSS gzip, sem source maps.
+- Manifesto, ícone, painel, background e recursos vinculados: HTTP 200 por HTTPS.
+- Manifesto servido como JSON com CORS permitido; todos os caminhos usam `/ProjetosRpg/`.
+- Porta 5174 sem servidor ativo.
+- Testes manuais na sala (instalação, GM/jogador, dano/cura/Undo e recarga): pendentes de validação interativa.
