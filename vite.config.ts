@@ -6,7 +6,12 @@ export default defineConfig({
   base: "./",
   plugins: [react()],
   server: {
-    cors: { origin: "https://www.owlbear.rodeo" },
+    cors: {
+      origin: ["https://www.owlbear.rodeo", "https://extensions.owlbear.rodeo"],
+    },
+    headers: {
+      "Access-Control-Allow-Private-Network": "true",
+    },
   },
   build: {
     sourcemap: false,
