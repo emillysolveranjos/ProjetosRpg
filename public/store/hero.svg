@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Rulebear</title>
+  <desc id="desc">Painel tático para o GM no Owlbear Rodeo</desc>
+  <rect width="1200" height="630" fill="#11171b"/>
+  <path d="M0 0h490L210 630H0Z" fill="#182126"/>
+  <circle cx="1080" cy="-20" r="330" fill="#f3a712" opacity=".08"/>
+  <g transform="translate(104 116)">
+    <path d="M0 36Q0 0 36 0h118q42 0 42 42v108q0 44-44 44H0Z" fill="#f3a712"/>
+    <path d="M55 46h59q39 0 39 31 0 21-19 28 25 7 25 33 0 36-44 36H55Zm35 28v21h20q10 0 10-11 0-10-12-10Zm0 47v25h23q13 0 13-13 0-12-15-12Z" fill="#17130b"/>
+  </g>
+  <text x="104" y="390" fill="#f2eee5" font-family="Segoe UI, sans-serif" font-size="92" font-weight="700" letter-spacing="-4">Rulebear</text>
+  <text x="110" y="444" fill="#f3a712" font-family="Consolas, monospace" font-size="22" font-weight="700" letter-spacing="4">A MESA DO GM, JUNTO DO MAPA</text>
+  <g transform="translate(698 136)" font-family="Segoe UI, sans-serif">
+    <rect width="390" height="356" rx="22" fill="#182126" stroke="#334047" stroke-width="2"/>
+    <circle cx="50" cy="55" r="25" fill="#29363c"/>
+    <text x="91" y="52" fill="#f2eee5" font-size="22" font-weight="700">Urso-coruja</text>
+    <text x="91" y="76" fill="#98a1a5" font-size="15">31 / 48 HP</text>
+    <rect x="30" y="102" width="330" height="12" rx="6" fill="#29363c"/>
+    <rect x="30" y="102" width="213" height="12" rx="6" fill="#f3a712"/>
+    <rect x="30" y="145" width="330" height="1" fill="#334047"/>
+    <text x="30" y="187" fill="#98a1a5" font-size="14">DANO</text>
+    <rect x="30" y="204" width="150" height="48" rx="9" fill="#11171b" stroke="#334047"/>
+    <text x="49" y="235" fill="#f2eee5" font-family="Consolas, monospace" font-size="18">2d6+3</text>
+    <rect x="195" y="204" width="165" height="48" rx="9" fill="#f26b5e"/>
+    <text x="240" y="235" fill="#fff" font-size="16" font-weight="700">Aplicar</text>
+    <rect x="30" y="278" width="110" height="38" rx="8" fill="#202b30" stroke="#334047"/>
+    <rect x="152" y="278" width="98" height="38" rx="8" fill="#202b30" stroke="#334047"/>
+    <rect x="262" y="278" width="98" height="38" rx="8" fill="#3bc6ae" opacity=".17"/>
+    <text x="65" y="302" fill="#f2eee5" font-size="13" font-weight="700">Dano</text>
+    <text x="184" y="302" fill="#f2eee5" font-size="13" font-weight="700">Cura</text>
+    <text x="278" y="302" fill="#3bc6ae" font-size="13" font-weight="700">Turno</text>
+  </g>
+</svg>

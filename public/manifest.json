@@ -1,0 +1,17 @@
+{
+  "name": "Rulebear",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "description": "Automatize dano, cura, resistências e condições em combates de RPG.",
+  "author": "Zero",
+  "icon": "./icon.svg",
+  "homepage_url": "https://github.com/samuelsanjos/rulebear",
+  "action": {
+    "title": "Rulebear",
+    "icon": "./icon.svg",
+    "popover": "./action.html",
+    "height": 700,
+    "width": 420
+  },
+  "background_url": "./background.html"
+}

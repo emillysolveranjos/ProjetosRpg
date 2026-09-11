@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high
+      - name: Enforce compressed bundle budget
+        shell: bash
+        run: |
+          size=$(find dist -type f \( -name '*.js' -o -name '*.css' \) -print0 | xargs -0 gzip -c | wc -c)
+          echo "Compressed JS/CSS: ${size} bytes"
+          test "$size" -le 512000
+      - name: Reject public source maps
+        shell: bash
+        run: test -z "$(find dist -type f -name '*.map' -print -quit)"
