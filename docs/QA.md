@@ -5,14 +5,16 @@
 - [ ] `npm run lint`
 - [ ] `npm run typecheck`
 - [ ] `npm test`
-- [ ] `npm run build`
+- [ ] `npm run build:pages`
 - [ ] `npm audit --audit-level=high`
 - [ ] JavaScript e CSS de produção abaixo de 500 KB gzip
 - [ ] nenhum source map em `dist/`
 
+Auditoria local: dois avisos moderados na cadeia do SDK Owlbear → uuid, sem correção disponível reportada pelo npm. Nenhum aviso alto ou crítico.
+
 ## Sala real
 
-- [ ] instalar pelo manifesto servido pelo Vite
+- [ ] instalar pelo manifesto público HTTPS com o servidor local desligado
 - [ ] confirmar interface completa como GM e mensagem privada como jogador
 - [ ] confirmar menu somente com um `IMAGE` em `CHARACTER`
 - [ ] rejeitar zero, vários, outro tipo/camada e token duplicado
@@ -27,10 +29,10 @@
 
 ## Lançamento
 
-- [ ] tornar `samuelsanjos/rulebear` público
+- [ ] tornar `emillysolveranjos/ProjetosRpg` público
 - [ ] habilitar GitHub Pages com fonte GitHub Actions
 - [ ] disparar `pages.yml` manualmente
-- [ ] validar `https://samuelsanjos.github.io/rulebear/manifest.json`
-- [ ] criar a tag `v1.0.0`
-- [ ] substituir as capturas provisórias por capturas finais de uma sala real
-- [ ] enviar `public/store/rulebear.md` ao repositório oficial de extensões
+- [ ] validar `https://emillysolveranjos.github.io/ProjetosRpg/manifest.json`
+- [ ] confirmar manifesto, ícones, painel e background por HTTPS no caminho `/ProjetosRpg/`
+
+A submissão à loja está fora desta publicação por link. As capturas e o arquivo de catálogo são rascunhos para uma etapa futura.

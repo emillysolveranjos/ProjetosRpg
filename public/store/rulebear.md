@@ -2,12 +2,12 @@
 title: Rulebear
 description: Controle HP, dano, cura, reduções e condições vinculados aos tokens da sua cena.
 author: Zero
-image: https://samuelsanjos.github.io/rulebear/store/hero.svg
-icon: https://samuelsanjos.github.io/rulebear/icon.svg
+image: https://emillysolveranjos.github.io/ProjetosRpg/store/hero.svg
+icon: https://emillysolveranjos.github.io/ProjetosRpg/icon.svg
 tags:
   - combat
-manifest: https://samuelsanjos.github.io/rulebear/manifest.json
-learn-more: https://github.com/samuelsanjos/rulebear
+manifest: https://emillysolveranjos.github.io/ProjetosRpg/manifest.json
+learn-more: https://github.com/emillysolveranjos/ProjetosRpg
 ---
 
 # Rulebear

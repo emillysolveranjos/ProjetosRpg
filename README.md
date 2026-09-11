@@ -2,7 +2,7 @@
 
 Extensão nativa e exclusiva do [Owlbear Rodeo](https://www.owlbear.rodeo/) para o GM controlar HP, dano, cura, reduções, condições e turnos sem sair da cena.
 
-> Status: desenvolvimento privado. O manifesto público e a entrada na loja serão liberados no lançamento 1.0.0.
+> Distribuição por link de instalação. A extensão não está listada na loja do Owlbear.
 
 ## O que já funciona
 
@@ -17,6 +17,16 @@ Extensão nativa e exclusiva do [Owlbear Rodeo](https://www.owlbear.rodeo/) para
 - acesso e menu de contexto exclusivos do GM;
 - estados seguros para cena ausente, metadata inválida e abertura fora do Owlbear.
 
+## Instalação pública
+
+1. No perfil do Owlbear, abra **Extensions → Add Extension**.
+2. Cole `https://emillysolveranjos.github.io/ProjetosRpg/manifest.json`.
+3. Na sala, abra **Extensions**, habilite **Rulebear** e abra seu painel como GM.
+
+Não é necessário Node.js, servidor local ou uma conta GitHub para usar a extensão. O endereço público fica disponível após a conclusão do workflow de publicação.
+
+Se você usava a versão local, desative essa instalação na sala antes de habilitar a pública para evitar duas instâncias. Os dados continuam na metadata da cena, com o mesmo identificador interno.
+
 ## Desenvolvimento
 
 Requisitos: Node.js 24+ e npm.
@@ -29,10 +39,10 @@ npm run dev
 No Owlbear Rodeo, adicione durante o desenvolvimento este manifesto:
 
 ```text
-http://localhost:5173/manifest.json
+http://localhost:5174/manifest.json
 ```
 
-O servidor Vite aceita CORS apenas de `https://www.owlbear.rodeo`. Para visualizar a interface sem uma sala, use `http://localhost:5173/action.html?mock=1`; esse modo existe somente no build de desenvolvimento.
+Use o hostname `localhost`: a política CSP observada no Owlbear permite `http://localhost:*`, mas bloqueia `http://127.0.0.1:*`. O comando `npm run dev` fixa a porta 5174 e avisa se ela estiver ocupada. O servidor Vite aceita CORS de `https://www.owlbear.rodeo` e `https://extensions.owlbear.rodeo`. Para visualizar a interface sem uma sala, use `http://localhost:5174/action.html?mock=1`; esse modo existe somente no build de desenvolvimento.
 
 ## Verificação
 
@@ -54,15 +64,17 @@ Limites por cena: 50 combatentes, 25 definições de condição e 50 registros n
 
 ## Publicação
 
-O workflow de CI roda em pushes e pull requests. O deploy do Pages é separado e só inicia manualmente ou com uma tag `v*`, depois que este repositório for tornado público e o GitHub Pages estiver configurado para GitHub Actions.
+O workflow de CI roda em pushes e pull requests. No repositório público `emillysolveranjos/ProjetosRpg`, configure **Settings → Pages → Source: GitHub Actions**. Para publicar, execute **Actions → Publicar GitHub Pages → Run workflow** na branch `main`. Atualizações também podem ser publicadas por tags `v*`; pushes comuns não fazem deploy.
 
-URL planejada: `https://samuelsanjos.github.io/rulebear/manifest.json`.
+A publicação depende de lint, tipos, testes, build, auditoria de dependências e verificação do pacote compilado. Somente `dist/` é hospedado. Se alguma validação falhar, o deploy não é executado e a publicação anterior permanece disponível.
+
+URL de instalação: `https://emillysolveranjos.github.io/ProjetosRpg/manifest.json`.
 
 ## English
 
 Rulebear is a native, Owlbear Rodeo-only GM extension for token-bound hit points, damage, healing, reductions, conditions, and manual turns. Scene metadata is the sole source of truth, players cannot view or edit the encounter, and there is no standalone mode or external server.
 
-For local development, run `npm install` and `npm run dev`, then install `http://localhost:5173/manifest.json` in Owlbear Rodeo. See [docs/QA.md](docs/QA.md) for the release checklist.
+For local development, run `npm install` and `npm run dev`, then install `http://localhost:5174/manifest.json` in Owlbear Rodeo. See [docs/QA.md](docs/QA.md) for the release checklist.
 
 ## Licença
 

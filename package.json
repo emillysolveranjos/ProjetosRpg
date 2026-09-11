@@ -11,9 +11,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite --host localhost --port 5174 --strictPort",
     "build": "tsc -b && vite build",
-    "build:pages": "npm run build && node scripts/prepare-pages-manifest.mjs",
+    "build:pages": "npm run build && node scripts/prepare-pages-manifest.mjs && node scripts/verify-pages-build.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0",

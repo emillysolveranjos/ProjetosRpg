@@ -5,7 +5,7 @@ async function register(): Promise<void> {
   await OBR.contextMenu.create({
     id: `${PLUGIN_ID}/add-combatant`,
     icons: [{
-      icon: "./icon.svg",
+      icon: new URL("./icon.svg", window.location.href).href,
       label: "Adicionar à Rulebear",
       filter: {
         min: 1,
