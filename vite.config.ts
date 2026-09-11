@@ -22,6 +22,7 @@ export default defineConfig({
   server: {
     cors: {
       origin: ["https://www.owlbear.rodeo", "https://extensions.owlbear.rodeo"],
+      preflightContinue: true,
     },
     headers: {
       "Access-Control-Allow-Private-Network": "true",
