@@ -22,7 +22,10 @@ describe("painel de jogadores", () => {
     expect(screen.queryByText("B", { selector: "h2" })).not.toBeInTheDocument();
     expect(screen.getByText("45%")).toBeInTheDocument();
     expect(screen.queryByText("13/29")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cura" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Cura" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ações de HP: 45%" }));
+    expect(screen.getByRole("button", { name: "Cura" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Aplicar" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Dano" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Acesso" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "+ Token selecionado" })).not.toBeInTheDocument();
@@ -35,11 +38,14 @@ describe("painel de jogadores", () => {
   it("prévia do mestre usa o jogador escolhido e não permite ações", async () => {
     const { gm } = setup(); render(<App gateway={gm} />);
     await screen.findByText("2 combatentes");
+    fireEvent.click(screen.getByRole("button", { name: "Preferências visuais" }));
     fireEvent.change(screen.getByLabelText("Ver como"), { target: { value: "p" } });
     expect(screen.getByText("1 combatente")).toBeInTheDocument();
     expect(screen.getByText("Prévia de jogador · somente leitura")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Marcadores" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cura" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Ações de HP/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("13/29")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar iniciativa" })).not.toBeInTheDocument();
   });
   it("mudança de papel retira controles do mestre sem recarregar", async () => {
     const { gm } = setup(); render(<App gateway={gm} />);
@@ -67,5 +73,15 @@ describe("painel de jogadores", () => {
     fireEvent.change(within(dialog).getByLabelText("Posição padrão dos marcadores"), { target: { value: "TOP" } });
     expect(useAppStore.getState().preferences.position).toBe("TOP");
     expect(n.writes).toBe(0);
+  });
+  it("expande apenas um cartão e mantém a edição recolhida inicialmente", async () => {
+    const { gm } = setup(); render(<App gateway={gm} />);
+    await screen.findByText("2 combatentes");
+    expect(screen.queryByLabelText("Dano (ex.: 2d6+3)")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ações de HP: 13/29" }));
+    expect(screen.getByLabelText("Dano (ex.: 2d6+3)")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Detalhes de B" }));
+    expect(screen.queryByLabelText("Dano (ex.: 2d6+3)")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("region", { name: "Detalhes do combatente" })).toHaveLength(1);
   });
 });

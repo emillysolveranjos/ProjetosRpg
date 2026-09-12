@@ -1,8 +1,8 @@
-# Validação da Rulebear 2.0.0
+# Validação da Rulebear 2.0.1
 
 ## Automatizada
 
-Validação local em 12/09/2026: lint e tipos passaram; 77 testes passaram em 10 arquivos. Build de produção verificado sob /ProjetosRpg/, sem source maps. Auditoria sem ocorrências altas ou críticas.
+Validação local em 12/09/2026: lint e tipos passaram; 84 testes passaram em 11 arquivos. Build de produção verificado sob /ProjetosRpg/, sem source maps. Auditoria sem ocorrências altas ou críticas.
 
 A suíte cobre:
 - regras existentes de dano, cura, reduções, dados, condições e manifesto;
@@ -16,11 +16,15 @@ A suíte cobre:
 - painel GM/jogadores, prévia, mudança de papel, revogação e preferências offline;
 - overlays locais, HP único, porcentagem, posição, movimento/escala, tokens ocultos e preservação de itens de outras extensões.
 
+Redesenho compacto: verificação adicional em Edge headless isolado, sem controle do navegador do usuário. Painel em 320 e 420 px sem rolagem horizontal, cartões recolhidos abaixo de 140 px, dano/cura pelo gateway de demonstração e prévia sem ações. Capturas inspecionadas. Servidor temporário encerrado após o teste.
+
+A suíte adicional cobre agrupamento de eventos, IDs estáveis e ausência de gravações de overlays em mudanças apenas de revisão, recuperação de falha de escrita, troca de cena, layout circular/arredondado e quebra de linha de valores longos. O estado compartilhado continua na versão 2, sem nova migração ou dependência.
+
 Os testes de SDK e múltiplos participantes usam transporte e cenas simulados. Não substituem uma sessão real de navegador.
 
 ## Pendências de validação em sala real
 
-Em 12/09/2026, o controle do Windows foi interrompido pelo usuário com Escape antes da conferência visual. Nenhuma interação adicional foi realizada no navegador. Os cenários abaixo permanecem pendentes:
+A pedido do usuário, esta implementação não usa controle do computador. O teste headless usa dados simulados; a conferência visual dos marcadores no mapa e as sessões reais abaixo permanecem pendentes:
 
 1. Recarregar a versão pública em uma sala de teste com um GM e dois jogadores distintos.
 2. Adicionar tokens e atribuir responsáveis; conferir visões diferentes, porcentagem, condições e histórico.
@@ -37,6 +41,6 @@ A auditoria atual encontra duas ocorrências moderadas transitivas na cadeia SDK
 
 ## Publicação
 
-O workflow manual precisa terminar com sucesso. Conferir por HTTPS manifesto 2.0.0, action.html, background.html, icon.svg, action-icon.svg e os JS/CSS referenciados sob /ProjetosRpg/. O pacote hospedado não deve conter source maps nem node_modules.
+Esta revisão está preparada localmente, ainda sem publicação. O workflow manual precisa terminar com sucesso. Conferir por HTTPS manifesto 2.0.1, action.html, background.html, icon.svg, action-icon.svg e os JS/CSS referenciados sob /ProjetosRpg/. O pacote hospedado não deve conter source maps nem node_modules.
 
 Rollback do código não converte cenas v2 para v1; preserve/exporte os backups antes de uma recuperação.

@@ -1,0 +1,68 @@
+.compact-app { padding-bottom: 48px; }
+.compact-app .topbar { height: 54px; padding: 8px 12px; gap: 9px; }
+.compact-app .brand-mark { width: 30px; height: 34px; font-size: 20px; }
+.compact-app .brand-copy strong { font-size: 13px; }
+.compact-app .brand-copy span { font-size: 9px; }
+.compact-app .icon-button { flex: 0 0 34px; width: 34px; height: 34px; background: transparent; }
+.compact-app .encounter-strip { display: flex; align-items: center; gap: 6px; padding: 14px 10px 12px; }
+.compact-app .encounter-strip > div { flex: 1; min-width: 0; }
+.compact-app .encounter-strip h1 { margin: 0; font-size: 16px; letter-spacing: -.03em; }
+.compact-app .encounter-strip .button { font-size: 12px; min-height: 34px; padding: 7px 9px; white-space: nowrap; }
+.compact-app .connection-note { color: var(--muted); font-size: 11px; margin: 8px 12px; line-height: 1.5; }
+.compact-app .preview-banner { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--panel-2); border-bottom: 1px solid var(--amber); font-size: 11px; }
+.compact-app .preview-banner > span { flex: 1; }
+.compact-app .preview-banner .button { font-size: 11px; padding: 7px; }
+.compact-app .roster { gap: 8px; padding: 0 10px 12px; }
+.compact-app .compact-card { border-radius: 10px; box-shadow: none; }
+.compact-app .compact-card.active { box-shadow: inset 3px 0 var(--amber); }
+.compact-app .combatant-main { padding: 10px 10px 5px; align-items: center; gap: 9px; }
+.compact-app .portrait { width: 36px; height: 36px; border-radius: 50%; }
+.compact-app .name-row { flex-wrap: wrap; gap: 4px 6px; }
+.compact-app .name-row h2 { font-size: 14px; }
+.compact-app .initiative-value { display: inline-block; min-height: 24px; padding: 3px 0; color: var(--muted); font-size: 11px; background: transparent; border: 0; text-align: left; }
+.compact-app button.initiative-value { cursor: pointer; }
+.compact-app .initiative-value strong { color: var(--ink); margin-left: 4px; }
+.compact-app .details-toggle { border-color: transparent; }
+.compact-app .compact-markers { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 0 10px 8px; }
+.compact-app .resource-value { border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 5px 0; color: var(--ink); min-width: 0; text-align: left; }
+.compact-app button.resource-value { cursor: pointer; }
+.compact-app button.resource-value:hover, .compact-app button.initiative-value:hover { background: var(--panel-2); }
+.compact-app .bar-value { width: 100%; min-height: 36px; }
+.compact-app .marker-caption { margin-bottom: 4px; font-size: 11px; overflow-wrap: anywhere; }
+.compact-app .marker-caption > span { color: var(--muted); }
+.compact-app .marker-caption strong { font-variant-numeric: tabular-nums; }
+.compact-app .hp-track { display: block; width: 100%; height: 5px; }
+.compact-app .badge-value { max-width: 100%; background: var(--panel-2); padding: 5px 8px; }
+.compact-app .badge-value .marker-caption { margin: 0; }
+.compact-app .condition-list { padding: 0 10px 8px; }
+.compact-app .condition-chip { padding: 4px 7px; border: 0; font-weight: 500; }
+.compact-app .card-details { border-top: 1px solid var(--line); display: grid; gap: 12px; padding: 10px; background: color-mix(in srgb, var(--panel-2) 35%, var(--panel)); }
+.compact-app .detail-tabs { display: flex; flex-wrap: wrap; gap: 5px; }
+.compact-app .card-details .button { font-size: 11px; padding: 8px; min-height: 34px; }
+.compact-app .card-details .condition-list { padding: 0; }
+.compact-app .card-details .button-row { margin: 0; }
+.compact-app .quick-form { display: flex; align-items: end; flex-wrap: wrap; gap: 6px; }
+.compact-app .quick-form > label { flex: 1 1 110px; min-width: 0; }
+.compact-app .context-editor { display: grid; gap: 10px; }
+.compact-app form.quick-form.context-editor { display: flex; }
+.compact-app .editor-modes { display: flex; gap: 4px; }
+.compact-app .editor-modes button, .compact-app .counter-controls button { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 7px 10px; min-height: 34px; cursor: pointer; font-size: 12px; }
+.compact-app .editor-modes button[aria-pressed=true] { border-color: var(--amber); color: var(--amber); }
+.compact-app .counter-controls { display: flex; gap: 4px; }
+.compact-app .end-own-turn { width: 100%; padding: 9px; background: var(--panel-2); border: 0; border-top: 1px solid var(--line); color: var(--amber); cursor: pointer; font-size: 12px; }
+.compact-app .footer-bar { height: 40px; padding: 0 10px; gap: 8px; }
+.compact-app .footer-bar .text-button { padding: 8px 0; font-size: 11px; }
+.compact-app .dialog { max-width: 100%; overflow-wrap: anywhere; }
+.compact-app .dialog .preview-select { display: grid; padding: 0; margin-bottom: 16px; }
+.compact-app .dialog > label { margin-bottom: 10px; }
+.compact-app .dialog header h2 { font-size: 18px; }
+.compact-app .dialog header button { min-width: 34px; min-height: 34px; }
+.compact-app .flash { margin: 0 10px 8px; }
+.compact-app .dialog .flash { margin: 0 0 10px; }
+.compact-app summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (max-width: 350px) {
+  .compact-app .encounter-strip { gap: 4px; }
+  .compact-app .encounter-strip h1 { font-size: 14px; }
+  .compact-app .encounter-strip .button { padding-inline: 7px; }
+  .compact-app .reduction-row { grid-template-columns: 1fr 52px; }
+}

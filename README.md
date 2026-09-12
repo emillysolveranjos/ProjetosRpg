@@ -7,16 +7,16 @@ Extensão do [Owlbear Rodeo](https://www.owlbear.rodeo/) para mestres e jogadore
 1. No perfil do Owlbear, abra **Extensions → Add Extension**.
 2. Cole [o link de instalação](https://emillysolveranjos.github.io/ProjetosRpg/manifest.json).
 3. Na sala, habilite **Rulebear** em **Extensions** e abra o botão do urso.
-4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.0.0.
+4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.0.1.
 
 Sem servidor local, conta GitHub ou login adicional. Distribuição por link; não está na loja do Owlbear. Desative instalações locais antigas na sala para não executar duas versões sobre o mesmo encontro.
 
 ## Preparar a mesa
 
 - Como mestre, selecione um token da camada **Personagem** e clique em **+ Token selecionado**, ou use o menu de contexto **Adicionar à Rulebear**.
-- Abra **Opções do token → Acesso**. Atribua os responsáveis, libere nome/participação e escolha as informações e ações permitidas.
+- Abra **⋯ no cartão → Acesso**. Atribua os responsáveis, libere nome/participação e escolha as informações e ações permitidas.
 - Abra **Marcadores** para configurar HP e até 11 recursos adicionais. Cada marcador tem nome, cor, audiência, exibição e permissão de edição.
-- Use **Ver como** para conferir a visão de um jogador, sem executar ações por ele.
+- Use **Engrenagem → Ver como** para conferir a visão de um jogador, sem executar ações por ele.
 - Todas as informações começam restritas aos mestres. Ser responsável pelo token não concede acesso automaticamente.
 - Os jogadores entram usando a mesma extensão e veem somente o que foi liberado na interface. Ações permitidas são aplicadas diretamente, sem aprovação a cada clique.
 
@@ -24,22 +24,30 @@ Sem servidor local, conta GitHub ou login adicional. Distribuição por link; n�
 
 ## Iniciativa e turnos
 
-Digite os valores em **Opções do token → Minha iniciativa**. O mestre usa **Ordenar iniciativa** e os botões de ordem para resolver empates ou ajustar a fila. Alterar um valor não reorganiza automaticamente o encontro.
+Clique em **Iniciativa** no cartão para digitar o valor. O mestre usa **⋯ do encontro → Ordenar iniciativa** e os botões de ordem para resolver empates ou ajustar a fila. Alterar um valor não reorganiza automaticamente o encontro.
 
-**Iniciar encontro** abre a rodada 1. **Próximo turno** executa os efeitos de fim do participante atual e início do próximo em uma única operação. Ao completar a fila, a rodada aumenta. O dono do token ativo pode encerrar o turno se o mestre permitir.
+**Iniciar** abre a rodada 1. **Próximo →** executa os efeitos de fim do participante atual e início do próximo em uma única operação. Ao completar a fila, a rodada aumenta. O dono do token ativo pode encerrar o turno se o mestre permitir.
 
 Novos combatentes entram no fim. Remover o ativo pausa o encontro; o mestre escolhe em qual token retomar. **Undo**, exclusivo dos mestres, restaura a última operação e seus efeitos sobre HP, condições, ordem e rodada.
 
 Dano aceita números e dados, como `2d6+3`, categorias e reduções em sequência. Cura respeita o HP máximo. A biblioteca permite condições com stacks, duração e efeitos no início/fim do turno. Iniciativa não possui rolagem nesta versão.
 
+## Painel compacto
+
+Clique no **valor ou barra de HP** para escolher Dano, Cura ou Ajuste; clique nos demais recursos para editá-los. Só aparecem ações autorizadas. Informações sem permissão de edição permanecem em modo de leitura. Os detalhes de um único cartão ficam abertos por vez.
+
+O botão **⋯ no cartão** reúne condições, defesas, acesso, marcadores, posição e ordem. Configurações completas continuam em janelas próprias. A confirmação de salvamento aparece brevemente no rodapé. A prévia do jogador é somente leitura e tem **Voltar ao mestre**.
+
 ## Marcadores e posição
+
+No mapa, HP aparece como uma barra arredondada junto à borda do token. Números e contadores ficam em círculos ou cápsulas voltados para a imagem; barras adicionais ficam do lado externo. Valores longos e múltiplos contadores se distribuem em linhas. O layout acompanha a preferência acima/abaixo e a visibilidade de cada participante.
 
 Quatro tipos: **barra atual/máximo**, **número**, **contador** e **marcação**. A barra de HP usa os próprios valores do combate; não existe um segundo HP.
 
 Ajustes numéricos aceitam `=10`, `+2`, `-3`, `*2` e `/2`, sem executar código. Para atribuir um número negativo, use `=-3`. Recursos personalizados aceitam valores finitos; barras limitam apenas o preenchimento visual a 0–100%. HP continua inteiro entre zero e seu máximo.
 
 - Na engrenagem **Minha visualização**, escolha acima ou abaixo.
-- Em **Opções do token**, crie uma exceção só para aquele token na própria tela.
+- Em **⋯ no cartão**, crie uma exceção só para aquele token na própria tela.
 - As preferências ficam no navegador, por usuário/sala; exceções também distinguem a cena. Não sincronizam entre dispositivos.
 - As barras funcionam com o painel fechado. Tokens invisíveis não mostram marcadores aos jogadores.
 - Modelos de marcadores ficam salvos na cena. Aplicar um modelo preserva o HP atual/máximo do combatente.
