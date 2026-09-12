@@ -1,81 +1,85 @@
 # Rulebear
 
-Extensão nativa e exclusiva do [Owlbear Rodeo](https://www.owlbear.rodeo/) para o GM controlar HP, dano, cura, reduções, condições e turnos sem sair da cena.
+Extensão do [Owlbear Rodeo](https://www.owlbear.rodeo/) para mestres e jogadores: iniciativa, HP, dano, cura, defesas, condições e marcadores visíveis nos tokens.
 
-> Distribuição por link de instalação. A extensão não está listada na loja do Owlbear.
-
-## O que já funciona
-
-- combatentes vinculados exclusivamente a tokens `IMAGE` da camada `CHARACTER`;
-- inclusão pelo menu de contexto ou pela seleção atual;
-- dano fixo ou em dados (`2d6+3`), categorias, reduções em sequência e bypass;
-- cura limitada ao HP máximo;
-- condições com stacks, duração e efeitos de dano/cura no início ou fim do turno;
-- turno manual, histórico de 50 ações e Undo da última ação compatível;
-- sincronização pela metadata da cena e atualização automática de nome/imagem do token;
-- remoção automática quando o token deixa a cena;
-- acesso e menu de contexto exclusivos do GM;
-- estados seguros para cena ausente, metadata inválida e abertura fora do Owlbear.
-
-## Instalação pública
+## Instalar ou atualizar
 
 1. No perfil do Owlbear, abra **Extensions → Add Extension**.
-2. Cole `https://emillysolveranjos.github.io/ProjetosRpg/manifest.json`.
-3. Na sala, abra **Extensions**, habilite **Rulebear** e abra seu painel como GM.
+2. Cole [o link de instalação](https://emillysolveranjos.github.io/ProjetosRpg/manifest.json).
+3. Na sala, habilite **Rulebear** em **Extensions** e abra o botão do urso.
+4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.0.0.
 
-Não é necessário Node.js, servidor local ou uma conta GitHub para usar a extensão. O endereço público fica disponível após a conclusão do workflow de publicação.
+Sem servidor local, conta GitHub ou login adicional. Distribuição por link; não está na loja do Owlbear. Desative instalações locais antigas na sala para não executar duas versões sobre o mesmo encontro.
 
-Se você usava a versão local, desative essa instalação na sala antes de habilitar a pública para evitar duas instâncias. Os dados continuam na metadata da cena, com o mesmo identificador interno.
+## Preparar a mesa
 
-## Desenvolvimento
+- Como mestre, selecione um token da camada **Personagem** e clique em **+ Token selecionado**, ou use o menu de contexto **Adicionar à Rulebear**.
+- Abra **Opções do token → Acesso**. Atribua os responsáveis, libere nome/participação e escolha as informações e ações permitidas.
+- Abra **Marcadores** para configurar HP e até 11 recursos adicionais. Cada marcador tem nome, cor, audiência, exibição e permissão de edição.
+- Use **Ver como** para conferir a visão de um jogador, sem executar ações por ele.
+- Todas as informações começam restritas aos mestres. Ser responsável pelo token não concede acesso automaticamente.
+- Os jogadores entram usando a mesma extensão e veem somente o que foi liberado na interface. Ações permitidas são aplicadas diretamente, sem aprovação a cada clique.
 
-Requisitos: Node.js 24+ e npm.
+**Visibilidade não é sigilo técnico:** todos os dados ficam na metadata compartilhada da cena. A Rulebear filtra a interface; ferramentas de desenvolvimento e outras extensões podem consultar esses dados.
 
-```bash
-npm install
+## Iniciativa e turnos
+
+Digite os valores em **Opções do token → Minha iniciativa**. O mestre usa **Ordenar iniciativa** e os botões de ordem para resolver empates ou ajustar a fila. Alterar um valor não reorganiza automaticamente o encontro.
+
+**Iniciar encontro** abre a rodada 1. **Próximo turno** executa os efeitos de fim do participante atual e início do próximo em uma única operação. Ao completar a fila, a rodada aumenta. O dono do token ativo pode encerrar o turno se o mestre permitir.
+
+Novos combatentes entram no fim. Remover o ativo pausa o encontro; o mestre escolhe em qual token retomar. **Undo**, exclusivo dos mestres, restaura a última operação e seus efeitos sobre HP, condições, ordem e rodada.
+
+Dano aceita números e dados, como `2d6+3`, categorias e reduções em sequência. Cura respeita o HP máximo. A biblioteca permite condições com stacks, duração e efeitos no início/fim do turno. Iniciativa não possui rolagem nesta versão.
+
+## Marcadores e posição
+
+Quatro tipos: **barra atual/máximo**, **número**, **contador** e **marcação**. A barra de HP usa os próprios valores do combate; não existe um segundo HP.
+
+Ajustes numéricos aceitam `=10`, `+2`, `-3`, `*2` e `/2`, sem executar código. Para atribuir um número negativo, use `=-3`. Recursos personalizados aceitam valores finitos; barras limitam apenas o preenchimento visual a 0–100%. HP continua inteiro entre zero e seu máximo.
+
+- Na engrenagem **Minha visualização**, escolha acima ou abaixo.
+- Em **Opções do token**, crie uma exceção só para aquele token na própria tela.
+- As preferências ficam no navegador, por usuário/sala; exceções também distinguem a cena. Não sincronizam entre dispositivos.
+- As barras funcionam com o painel fechado. Tokens invisíveis não mostram marcadores aos jogadores.
+- Modelos de marcadores ficam salvos na cena. Aplicar um modelo preserva o HP atual/máximo do combatente.
+
+## Importar Owl Trackers
+
+Em **Marcadores → Importar do Owl Trackers**, confira a prévia, selecione os marcadores e escolha qual barra corresponde ao HP, se houver. Decida entre acrescentar recursos e substituir os personalizados existentes, respeitando o limite de 12. A importação fica no rascunho até **Salvar marcadores**.
+
+Os dados originais são preservados e não há sincronização contínua. Depois de conferir o resultado, desative o Owl Trackers na sala para evitar barras duplicadas. Barras importadas com máximo zero usam máximo 1 na prévia; HP exige valores inteiros válidos.
+
+## Sincronização e migração
+
+É necessário um mestre conectado e com a extensão ativa para alterar o encontro. Seu painel pode estar fechado. Sem mestre, jogadores continuam consultando dados e ajustando preferências visuais.
+
+O background elege um mestre coordenador e processa comandos em sequência. Durante reconexões há uma breve espera. Se o estado mudou, a ação é rejeitada para evitar sobrescrever alterações. Se uma confirmação não chegar, confira os valores antes de tentar de novo: a Rulebear não repete a ação automaticamente.
+
+Cenas v1 são migradas por um mestre, preservando HP, defesas, condições, histórico e turno aberto. A migração inicia acesso restrito, não atribui iniciativas e reinicia o Undo antigo. Antes da conversão, o navegador do mestre guarda um backup v1. Exporte-o pela engrenagem em **Baixar backups anteriores à migração**; esse arquivo contém os dados originais para recuperação. Não limpe o armazenamento do navegador antes de exportar. Se não puder salvar o backup, a migração não grava a cena.
+
+Dados inválidos ou versões futuras não são substituídos. Limites: 50 combatentes, 12 marcadores por token, 25 definições de condição, 25 modelos e 50 registros de histórico.
+
+## Desenvolvimento e publicação
+
+Node.js 24+ e npm:
+
+```sh
+npm ci
 npm run dev
-```
-
-No Owlbear Rodeo, adicione durante o desenvolvimento este manifesto:
-
-```text
-http://localhost:5174/manifest.json
-```
-
-Use o hostname `localhost`: a política CSP observada no Owlbear permite `http://localhost:*`, mas bloqueia `http://127.0.0.1:*`. O comando `npm run dev` fixa a porta 5174 e avisa se ela estiver ocupada. O servidor Vite aceita CORS de `https://www.owlbear.rodeo` e `https://extensions.owlbear.rodeo`. Para visualizar a interface sem uma sala, use `http://localhost:5174/action.html?mock=1`; esse modo existe somente no build de desenvolvimento.
-
-## Verificação
-
-```bash
 npm run lint
 npm run typecheck
 npm test
-npm run build
+npm run build:pages
 npm audit --audit-level=high
 ```
 
-O build cria `action.html`, `background.html` e `manifest.json` em `dist/`, sem source maps. O limite aceito para o JavaScript/CSS comprimido é 500 KB.
+Desenvolvimento: `http://localhost:5174/manifest.json`. O hostname `localhost` é necessário para a política CSP observada no Owlbear. O modo de demonstração `/action.html?mock=1` (ou `&role=player`) existe somente em desenvolvimento.
 
-## Estado da cena
+O CI verifica pushes e pull requests. Publicação é manual em **Actions → Publicar GitHub Pages → Run workflow**, ou por tags `v*`. Pushes comuns não publicam. Apenas `dist/` é hospedado, sem mapas de código-fonte; o build verifica manifesto, caminhos sob `/ProjetosRpg/` e limite de 500 KB gzip para JS/CSS.
 
-A única fonte de verdade é `OBR.scene` em `io.github.samuelsanjos.rulebear/state`. A metadata possui `schemaVersion` e `revision`; entradas ausentes criam um estado vazio em memória, enquanto versões desconhecidas ou conteúdo inválido são mostrados como erro e nunca são sobrescritos silenciosamente.
-
-Limites por cena: 50 combatentes, 25 definições de condição e 50 registros no histórico. Consulte [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para as decisões de isolamento e sincronização.
-
-## Publicação
-
-O workflow de CI roda em pushes e pull requests. No repositório público `emillysolveranjos/ProjetosRpg`, configure **Settings → Pages → Source: GitHub Actions**. Para publicar, execute **Actions → Publicar GitHub Pages → Run workflow** na branch `main`. Atualizações também podem ser publicadas por tags `v*`; pushes comuns não fazem deploy.
-
-A publicação depende de lint, tipos, testes, build, auditoria de dependências e verificação do pacote compilado. Somente `dist/` é hospedado. Se alguma validação falhar, o deploy não é executado e a publicação anterior permanece disponível.
-
-URL de instalação: `https://emillysolveranjos.github.io/ProjetosRpg/manifest.json`.
-
-## English
-
-Rulebear is a native, Owlbear Rodeo-only GM extension for token-bound hit points, damage, healing, reductions, conditions, and manual turns. Scene metadata is the sole source of truth, players cannot view or edit the encounter, and there is no standalone mode or external server.
-
-For local development, run `npm install` and `npm run dev`, then install `http://localhost:5174/manifest.json` in Owlbear Rodeo. See [docs/QA.md](docs/QA.md) for the release checklist.
+Consulte [arquitetura](docs/ARCHITECTURE.md) e [validação](docs/QA.md).
 
 ## Licença
 
-MIT © 2026 Zero.
+MIT © 2026 Zero. Marcadores implementados na Rulebear com código próprio; Owl Trackers mantém seus próprios nome, identidade e licença.

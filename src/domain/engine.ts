@@ -1,3 +1,4 @@
+import { defaultMarker, defaultSettings } from "./defaults";
 import { MAX_COMBATANTS, MAX_DEFINITIONS, MAX_HISTORY } from "../config";
 import { evaluateExpression, type DieRoller } from "./dice";
 import type {
@@ -67,7 +68,8 @@ export function addCombatant(
   if (!Number.isInteger(currentHp) || currentHp < 0 || currentHp > maximumHp) throw new Error("O HP atual deve estar entre zero e o máximo.");
 
   const state = clone(current);
-  state.combatants[tokenId] = { tokenId, currentHp, maximumHp, reductions: [], conditions: [] };
+  state.combatants[tokenId] = { tokenId, currentHp, maximumHp, reductions: [], conditions: [], settings: defaultSettings(), markers: [defaultMarker(true)], initiative: null };
+  state.encounter.order.push(tokenId);
   return commit(state, "COMBATANT_ADDED", "Combatente adicionado", combatantUndo(tokenId, null), tokenId);
 }
 
@@ -75,6 +77,8 @@ export function removeCombatant(current: RulebearSceneState, tokenId: string): R
   const before = clone(getCombatant(current, tokenId));
   const state = clone(current);
   delete state.combatants[tokenId];
+  state.encounter.order = state.encounter.order.filter((id) => id !== tokenId);
+  if (state.activeTokenId === tokenId) state.encounter.paused = true;
   if (state.activeTokenId === tokenId) delete state.activeTokenId;
   return commit(
     state,
@@ -342,6 +346,8 @@ export function undoLastAction(current: RulebearSceneState): RulebearSceneState 
     for (const [tokenId, combatant] of Object.entries(undo.combatants)) {
       if (combatant) state.combatants[tokenId] = clone(combatant);
       else delete state.combatants[tokenId];
+  state.encounter.order = state.encounter.order.filter((id) => id !== tokenId);
+  if (state.activeTokenId === tokenId) state.encounter.paused = true;
     }
   }
   if (undo.conditionDefinitions) state.conditionDefinitions = clone(undo.conditionDefinitions);

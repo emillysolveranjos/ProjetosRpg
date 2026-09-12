@@ -1,7 +1,7 @@
 {
   "name": "rulebear",
   "private": true,
-  "version": "1.0.1",
+  "version": "2.0.0",
   "type": "module",
   "description": "Extensão nativa do Owlbear Rodeo para automatizar dano, cura, resistências e condições.",
   "author": "Zero",

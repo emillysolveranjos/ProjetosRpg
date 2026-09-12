@@ -1,0 +1,71 @@
+import { act, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
+import { App } from "../src/action/App";
+import { useAppStore } from "../src/state/store";
+import { createEmptyState, parseSceneState } from "../src/state/schema";
+import { addCombatant } from "../src/domain/engine";
+import { Network } from "./network";
+beforeEach(() => useAppStore.setState({ status: "LOADING", state: createEmptyState(), participants: [], self: undefined, role: "PLAYER", online: false, busy: false, error: undefined, notice: undefined, pendingTokenId: undefined }));
+function setup() {
+  const n = new Network(), gm = n.join("gm", "GM"), p = n.join("p", "PLAYER"), other = n.join("other", "PLAYER");
+  const s = addCombatant(addCombatant(createEmptyState(), "a", 13, 29), "b", 3, 5);
+  const a = s.combatants.a!; a.settings.owners = ["p"]; a.settings.visibility.identity.mode = "OWNERS";
+  a.markers[0]!.audience.mode = "OWNERS"; a.markers[0]!.display = "PERCENT";
+  a.settings.permissions.heal = true; a.settings.permissions.initiative = true;
+  n.value = s; return { n, gm, p, other };
+}
+describe("painel de jogadores", () => {
+  it("mostra somente tokens liberados, porcentagem e ações permitidas", async () => {
+    const { p } = setup(); render(<App gateway={p} />);
+    expect(await screen.findByText("1 combatente")).toBeInTheDocument();
+    expect(screen.getByText("A", { selector: "h2" })).toBeInTheDocument();
+    expect(screen.queryByText("B", { selector: "h2" })).not.toBeInTheDocument();
+    expect(screen.getByText("45%")).toBeInTheDocument();
+    expect(screen.queryByText("13/29")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cura" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Dano" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Acesso" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Token selecionado" })).not.toBeInTheDocument();
+  });
+  it("outro jogador não recebe a mesma visão do responsável", async () => {
+    const { other } = setup(); render(<App gateway={other} />);
+    expect(await screen.findByText("Nenhum combatente liberado")).toBeInTheDocument();
+    expect(screen.queryByText("45%")).not.toBeInTheDocument();
+  });
+  it("prévia do mestre usa o jogador escolhido e não permite ações", async () => {
+    const { gm } = setup(); render(<App gateway={gm} />);
+    await screen.findByText("2 combatentes");
+    fireEvent.change(screen.getByLabelText("Ver como"), { target: { value: "p" } });
+    expect(screen.getByText("1 combatente")).toBeInTheDocument();
+    expect(screen.getByText("Prévia de jogador · somente leitura")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Marcadores" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cura" })).toBeDisabled();
+  });
+  it("mudança de papel retira controles do mestre sem recarregar", async () => {
+    const { gm } = setup(); render(<App gateway={gm} />);
+    await screen.findByRole("button", { name: "+ Token selecionado" });
+    await act(async () => { gm.self.role = "PLAYER"; gm.parties.forEach((cb) => cb()); });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "+ Token selecionado" })).not.toBeInTheDocument());
+    expect(screen.getByText("Nenhum combatente liberado")).toBeInTheDocument();
+  });
+  it("token invisível não aparece no painel nem no histórico do jogador", async () => {
+    const { n, p } = setup(); n.tokens[0]!.visible = false;
+    render(<App gateway={p} />);
+    expect(await screen.findByText("Nenhum combatente liberado")).toBeInTheDocument();
+  });
+  it("revogação de visibilidade remove imediatamente o cartão e os valores", async () => {
+    const { n, gm, p } = setup(); render(<App gateway={p} />);
+    await screen.findByText("45%");
+    await act(async () => { const s = parseSceneState(n.value); s.combatants.a!.settings.visibility.identity.mode = "GM"; await gm.writeSceneState(s); });
+    await waitFor(() => expect(screen.queryByText("45%")).not.toBeInTheDocument());
+  });
+  it("preferência visual funciona sem mestre conectado", async () => {
+    const { n, p } = setup(); n.gateways = [p];
+    render(<App gateway={p} />); await screen.findByText("1 combatente");
+    fireEvent.click(screen.getByRole("button", { name: "Preferências visuais" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Posição padrão dos marcadores"), { target: { value: "TOP" } });
+    expect(useAppStore.getState().preferences.position).toBe("TOP");
+    expect(n.writes).toBe(0);
+  });
+});

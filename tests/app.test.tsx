@@ -1,3 +1,4 @@
+import { addCombatant } from "../src/domain/engine";
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "../src/action/App";
@@ -7,6 +8,15 @@ import { createEmptyState } from "../src/state/schema";
 import { useAppStore } from "../src/state/store";
 
 class FakeGateway implements OwlbearGateway {
+  async getSelf() { return { id: "self", connectionId: "connection", name: "Teste", role: this.role }; }
+  async getParticipants() { return [await this.getSelf()]; }
+  onParticipantsChange() { return () => {}; }
+  async sendMessage() {}
+  onMessage() { return () => {}; }
+  getRoomId() { return "test-room"; }
+  async saveBackup() {}
+  async readBackup() { return []; }
+  async getTokenMetadata() { return {}; }
   role: Role = "GM";
   readyScene = true;
   value: unknown = createEmptyState();
@@ -46,11 +56,11 @@ describe("superfície da extensão", () => {
     expect(await screen.findByText("Abra uma cena para começar")).toBeInTheDocument();
   });
 
-  it("não expõe dados a jogadores", async () => {
+  it("mostra somente os dados liberados na interface do jogador", async () => {
     const gateway = new FakeGateway(); gateway.role = "PLAYER";
     render(<App gateway={gateway} />);
-    expect(await screen.findByText("Esta ferramenta é privada")).toBeInTheDocument();
-    expect(gateway.readCount).toBe(0);
+    expect(await screen.findByText("Nenhum combatente liberado")).toBeInTheDocument();
+    expect(gateway.readCount).toBeGreaterThan(0);
   });
 
   it("mostra erro e preserva metadata inválida", async () => {
@@ -59,11 +69,12 @@ describe("superfície da extensão", () => {
     expect(await screen.findByText("A cena precisa de atenção")).toBeInTheDocument();
   });
 
-  it("aceita atualização externa last-write-wins", async () => {
+  it("reflete estado confirmado pelo coordenador", async () => {
     const gateway = new FakeGateway();
     render(<App gateway={gateway} />);
     expect(await screen.findByText("0 combatentes")).toBeInTheDocument();
-    const external = { ...createEmptyState(), revision: 8, combatants: { token: { tokenId: "token", currentHp: 5, maximumHp: 5, reductions: [], conditions: [] } } };
+    const external = addCombatant(createEmptyState(), "token", 5, 5);
+    gateway.value = external;
     gateway.metadataCallback?.(external);
     await waitFor(() => expect(screen.getByText("1 combatente")).toBeInTheDocument());
   });

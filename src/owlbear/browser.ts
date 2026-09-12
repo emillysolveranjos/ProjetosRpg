@@ -1,6 +1,6 @@
 import OBR, { isImage, type Item, type Metadata } from "@owlbear-rodeo/sdk";
 import { PENDING_TOKEN_KEY, STATE_KEY } from "../config";
-import type { RulebearSceneState, TokenView } from "../domain/types";
+import type { RulebearSceneState, TokenView, Participant } from "../domain/types";
 import type { OwlbearGateway, PendingToken, ThemeMode } from "./gateway";
 
 function toTokens(items: Item[]): TokenView[] {
@@ -9,6 +9,7 @@ function toTokens(items: Item[]): TokenView[] {
     if (!isImage(item) || item.layer !== "CHARACTER") continue;
     tokens.push({
       id: item.id,
+      visible: item.visible,
       name: item.name.trim() || "Token sem nome",
       ...(item.image.url ? { imageUrl: item.image.url } : {}),
     });
@@ -26,6 +27,36 @@ function pendingFrom(metadata: Metadata): PendingToken | null {
 }
 
 export class BrowserOwlbearGateway implements OwlbearGateway {
+  async getSelf(): Promise<Participant> {
+    return { id: await OBR.player.getId(), connectionId: await OBR.player.getConnectionId(), name: await OBR.player.getName(), role: await OBR.player.getRole() };
+  }
+  async getParticipants() { return [await this.getSelf(), ...await OBR.party.getPlayers()]; }
+  onParticipantsChange(callback: () => void) {
+    let previous = "";
+    const notify = async () => {
+      const participants = await this.getParticipants();
+      const next = JSON.stringify(participants.map((p) => [p.id, p.connectionId, p.name, p.role]).sort());
+      if (next !== previous) { previous = next; callback(); }
+    };
+    void notify();
+    const a = OBR.party.onChange(() => void notify()), b = OBR.player.onChange(() => void notify());
+    return () => { a(); b(); };
+  }
+  sendMessage(data: unknown) { return OBR.broadcast.sendMessage("io.github.samuelsanjos.rulebear/v2", data, { destination: "ALL" }); }
+  onMessage(callback: (data: unknown, connectionId: string) => void) {
+    return OBR.broadcast.onMessage("io.github.samuelsanjos.rulebear/v2", (event) => callback(event.data, event.connectionId));
+  }
+  getRoomId() { return OBR.room.id; }
+  async saveBackup(value: unknown) {
+    // Keep every migrated scene, rather than overwriting another scene's backup in this room.
+    const key = STATE_KEY + "/backup/" + OBR.room.id;
+    const previous = JSON.parse(localStorage.getItem(key) ?? "[]") as unknown[];
+    const text = JSON.stringify(value);
+    if (!previous.some((x) => JSON.stringify(x) === text)) previous.push(value);
+    localStorage.setItem(key, JSON.stringify(previous));
+  }
+  async readBackup(): Promise<unknown> { return JSON.parse(localStorage.getItem(STATE_KEY + "/backup/" + OBR.room.id) ?? "[]"); }
+  async getTokenMetadata(tokenId: string) { return (await OBR.scene.items.getItems([tokenId]))[0]?.metadata ?? {}; }
   async ready(): Promise<void> {
     if (OBR.isReady) return;
     await new Promise<void>((resolve) => OBR.onReady(resolve));

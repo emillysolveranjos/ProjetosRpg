@@ -1,8 +1,8 @@
 {
   "name": "Rulebear",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "manifest_version": 1,
-  "description": "Automatize dano, cura, resistências e condições em combates de RPG.",
+  "description": "Iniciativa, marcadores nos tokens e controles para mestres e jogadores.",
   "author": "Zero",
   "icon": "/icon.svg",
   "homepage_url": "https://github.com/emillysolveranjos/ProjetosRpg",

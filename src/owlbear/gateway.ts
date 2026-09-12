@@ -1,4 +1,4 @@
-import type { RulebearSceneState, TokenView } from "../domain/types";
+import type { RulebearSceneState, TokenView, Participant } from "../domain/types";
 
 export type Role = "GM" | "PLAYER";
 export type ThemeMode = "DARK" | "LIGHT";
@@ -10,6 +10,15 @@ export interface PendingToken {
 
 export interface OwlbearGateway {
   ready(): Promise<void>;
+  getSelf(): Promise<Participant>;
+  getParticipants(): Promise<Participant[]>;
+  onParticipantsChange(callback: () => void): () => void;
+  sendMessage(data: unknown): Promise<void>;
+  onMessage(callback: (data: unknown, connectionId: string) => void): () => void;
+  getRoomId(): string;
+  saveBackup(value: unknown): Promise<void>;
+  readBackup(): Promise<unknown>;
+  getTokenMetadata(tokenId: string): Promise<Record<string, unknown>>;
   getRole(): Promise<Role>;
   isSceneReady(): Promise<boolean>;
   readSceneState(): Promise<unknown>;

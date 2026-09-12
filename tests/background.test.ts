@@ -1,3 +1,5 @@
+vi.mock("../src/owlbear/sync", () => ({ startCoordinator: vi.fn() }));
+vi.mock("../src/background/overlays", () => ({ startOverlays: vi.fn() }));
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { create, setIcon } = vi.hoisted(() => ({

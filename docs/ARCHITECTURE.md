@@ -1,26 +1,55 @@
-# Arquitetura
+# Arquitetura da Rulebear 2
 
-## Fronteiras
+## Ambiente e dados
 
-Rulebear é um site estático carregado apenas como extensão do Owlbear Rodeo. Não há servidor próprio, banco de dados, PWA, CLI, .NET, WebAssembly ou modo standalone. A abertura direta da build de produção mostra somente instruções de instalação.
+React/TypeScript no painel de ação; background persistente enquanto a extensão está ativa na sala. Hospedagem estática em GitHub Pages. SDK Owlbear 3.1.0. Nenhum serviço externo de dados ou autenticação adicional.
 
-## Entradas
+A fonte persistente continua em `io.github.samuelsanjos.rulebear/state`, com `schemaVersion: 2`. O nome do namespace legado é intencional para preservar cenas existentes. Estado contém combatentes, ordem/rodada, regras de condições, responsáveis, audiências, permissões, marcadores, modelos, histórico, Undo e IDs dos últimos 100 comandos confirmados.
 
-- `action.html`: popover React do GM, projetado para 420 × 700 px.
-- `background.html`: registra o menu de contexto e entrega o token escolhido ao popover por metadata privada do jogador.
+HP permanece em currentHp/maximumHp. Um marcador com hp=true referencia esses campos, ignorando seus campos numéricos locais. Zod valida limites, unicidade, ordem completa e uma única barra HP. O motor original mantém regras de dano, cura e condições.
 
-## Estado
+## Acesso e apresentação
 
-`io.github.samuelsanjos.rulebear/state` em `OBR.scene` contém um documento completo e versionado. Cada alteração parte do último documento observado, incrementa `revision`, passa pela validação Zod e substitui a chave inteira. Eventos de `OBR.scene.onMetadataChange` são aplicados como last-write-wins.
+Audiências: GM, todos, responsáveis e IDs selecionados. Nome/participação é requisito para apresentar o token ao jogador. Permissões de ação também exigem responsabilidade; máximos e configurações permanecem exclusivos de GM. Tokens invisíveis são retirados da visão de jogadores.
 
-A aplicação não tenta mesclar duas gravações simultâneas. A revisão torna conflitos observáveis, mas a garantia efetiva é a semântica last-write-wins fornecida pela metadata da cena. Isso é adequado ao primeiro lançamento GM-only e mantém a operação previsível em duas janelas.
+Filtros são compartilhados entre painel e overlays. Histórico de jogador nunca reutiliza resumos livres antigos, pois podem conter nomes e valores ocultos; apresenta eventos genéricos somente quando o token e seu histórico estão liberados. O badge não revela contagens.
 
-## Domínio
+Metadata de cena, itens e jogadores é compartilhada. As restrições são controles de uso normal, não isolamento criptográfico nem proteção contra adulteração por outro código. A prévia de jogador no painel GM é somente leitura.
 
-O diretório `src/domain` não conhece o SDK. Todas as operações recebem um estado imutável e devolvem um novo estado, permitindo testes determinísticos. O adaptador em `src/owlbear` traduz itens, seleção, tema, badge e metadata.
+## Comandos e coordenação
 
-O Undo armazena apenas o fragmento anterior necessário à última ação. O histórico permanece em até 50 entradas e marca a entrada desfeita, em vez de apagar a auditoria.
+Canal de broadcast `io.github.samuelsanjos.rulebear/v2`. O SDK informa connectionId; o receptor resolve ID e papel usando a lista de participantes, sem confiar no papel enviado no payload.
 
-## Privacidade
+Backgrounds anunciam presença a cada 1,5 segundo. Entre GMs presentes, o menor connectionId é coordenador. Presenças expiram após 6,5 segundos; mudanças de coordenador exigem estabilização de 2,2 segundos e releitura da cena. Uma sessão aleatória distingue reinícios na mesma conexão. Mudanças de papel/conexão atualizam a eleição.
 
-A interface consulta o papel atual antes de ler e mostrar o encontro. O menu de contexto filtra `GM`, uma seleção, tipo `IMAGE` e camada `CHARACTER`. Não são solicitadas permissões adicionais no manifesto.
+O painel envia ID do comando, cena, revisão observada e sessão do coordenador. Uma fila por coordenador:
+1. verifica cena, revisão e recibo;
+2. resolve novamente o participante e suas permissões;
+3. executa o comando no motor;
+4. verifica novamente a cena/revisão/coordenação;
+5. salva e somente então confirma.
+
+A revisão é incrementada uma vez por comando. Avançar turno agrega fim/início e Undo em uma única gravação. Comandos simultâneos baseados na mesma revisão: o primeiro confirma; o seguinte é rejeitado como desatualizado. Formulários de acesso, marcadores e defesas conservam sua revisão de abertura.
+
+A confirmação expira em nove segundos. Não há retry automático nem fila offline. Recibos persistentes evitam reaplicar comandos confirmados mesmo após reinício do coordenador. A API não oferece compare-and-swap: controles de eleição e revisão evitam conflitos normais, mas não constituem uma garantia transacional contra partições arbitrárias ou escritores externos.
+
+## Overlays e preferências
+
+Marcadores são itens de `OBR.scene.local`, anexados ao token, sem interceptar cliques. Só itens com o namespace de overlay da Rulebear são removidos durante reconstrução. Atualizações são serializadas e invalidadas em mudanças de geração/cena; inclusão e remoção ocorrem em lotes de até 100.
+
+As coordenadas usam limites atuais do token. Movimento, escala, acesso e papel provocam reconstrução. Preferências ficam no localStorage, indexadas por sala/usuário; exceções usam sceneId/tokenId. Um broadcast de preferência solicita releitura no background, sem gravar estado de combate.
+
+O importador interpreta os quatro tipos do namespace `com.owl-trackers/trackers`. A prévia converte valores, aplica as restrições da Rulebear e permite mapear HP. Não escreve no namespace do Owl Trackers e não mantém sincronização entre extensões.
+
+## Migração e recuperação
+
+Somente o coordenador grava a migração v1. Primeiro valida e cria um backup JSON no localStorage do mestre, separado por sala e mantendo os backups de cenas anteriores. Se o backup falhar, não grava v2. A exportação no painel permite conservar os dados originais fora do navegador.
+
+Migração preserva dados de combate e histórico, cria acesso privado, ordem pela sequência existente, iniciativas nulas e rodada 1 se já havia turno ativo. Undo antigo é reiniciado. Não há downgrade automático para v1; executar código antigo sobre cena v2 resulta em validação inválida, não conversão destrutiva.
+
+## Referências
+
+- [Metadata compartilhada](https://docs.owlbear.rodeo/extensions/reference/metadata/)
+- [Itens locais](https://docs.owlbear.rodeo/extensions/apis/scene/local/)
+- [Broadcast e connectionId](https://docs.owlbear.rodeo/extensions/apis/broadcast/)
+- [Identificador do Owl Trackers](https://github.com/SeamusFinlayson/owl-trackers/blob/main/src/getPluginId.ts)

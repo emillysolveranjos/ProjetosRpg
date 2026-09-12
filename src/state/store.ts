@@ -1,143 +1,89 @@
 import { create } from "zustand";
-import { cleanupMissingTokens } from "../domain/engine";
-import type { RulebearSceneState, TokenView } from "../domain/types";
+import type { RulebearSceneState, TokenView, Participant, DisplayPreferences } from "../domain/types";
 import type { OwlbearGateway, Role, ThemeMode } from "../owlbear/gateway";
-import { createEmptyState, parseSceneState } from "./schema";
-
-export type AppStatus = "LOADING" | "OUTSIDE" | "NO_SCENE" | "PLAYER" | "READY" | "INVALID";
-
+import { createEmptyState, parseSceneState, isLegacyState, migrateLegacyState } from "./schema";
+import { CommandClient } from "../owlbear/sync";
+import type { Command } from "../domain/commands";
+import { readPreferences, savePreferences } from "./preferences";
+export type AppStatus = "LOADING" | "OUTSIDE" | "NO_SCENE" | "READY" | "INVALID";
 interface AppStore {
-  gateway?: OwlbearGateway;
-  status: AppStatus;
-  role: Role;
-  theme: ThemeMode;
-  state: RulebearSceneState;
-  tokens: TokenView[];
-  pendingTokenId?: string;
-  error?: string;
-  notice?: string;
+  gateway?: OwlbearGateway; status: AppStatus; role: Role; theme: ThemeMode; self?: Participant;
+  participants: Participant[]; online: boolean; busy: boolean; state: RulebearSceneState; tokens: TokenView[];
+  preferences: DisplayPreferences; pendingTokenId?: string; error?: string; notice?: string;
   initialize(gateway?: OwlbearGateway): Promise<() => void>;
-  refreshScene(): Promise<void>;
-  persist(next: RulebearSceneState, notice?: string): Promise<void>;
-  requestSelectedToken(): Promise<void>;
-  setPendingToken(tokenId?: string): void;
-  clearMessage(): void;
+  refreshScene(): Promise<void>; command(command: Command, revision?: number): Promise<boolean>;
+  requestSelectedToken(): Promise<void>; setPendingToken(tokenId?: string): void; clearMessage(): void;
+  setPreferences(value: DisplayPreferences): void;
 }
-
-function readState(value: unknown): { state: RulebearSceneState; invalid: boolean } {
-  if (value === undefined || value === null) return { state: createEmptyState(), invalid: false };
-  const parsed = parseSceneState(value);
-  return { state: parsed, invalid: false };
-}
-
+let client: CommandClient | undefined;
 export const useAppStore = create<AppStore>((set, get) => ({
-  status: "LOADING",
-  role: "PLAYER",
-  theme: "DARK",
-  state: createEmptyState(),
-  tokens: [],
-
+  status: "LOADING", role: "PLAYER", theme: "DARK", participants: [], online: false, busy: false,
+  state: createEmptyState(), tokens: [], preferences: { position: "BOTTOM", overrides: {} },
   async initialize(gateway) {
-    if (!gateway) {
-      set({ status: "OUTSIDE" });
-      return () => undefined;
-    }
-    set({ gateway, status: "LOADING" });
+    client?.dispose(); client = undefined;
+    if (!gateway) { set({ status: "OUTSIDE" }); return () => {}; }
+    set({ gateway, status: "LOADING", online: false, busy: false, error: undefined });
     await gateway.ready();
-    const [role, theme] = await Promise.all([gateway.getRole(), gateway.getThemeMode()]);
-    set({ role, theme });
+    const [self, theme, participants] = await Promise.all([gateway.getSelf(), gateway.getThemeMode(), gateway.getParticipants()]);
+    set({ self, role: self.role, theme, participants, preferences: readPreferences(gateway.getRoomId(), self.id) });
     document.documentElement.dataset.theme = theme.toLowerCase();
+    const instance = new CommandClient(gateway, (online) => set({ online }), (error) => set({ error }));
+    client = instance;
     await get().refreshScene();
-
+    const updateParty = async () => {
+      const [nextSelf, nextParty] = await Promise.all([gateway.getSelf(), gateway.getParticipants()]);
+      set({ self: nextSelf, role: nextSelf.role, participants: nextParty });
+    };
     const unsubscribers = [
-      gateway.onSceneReadyChange(() => { void get().refreshScene(); }),
-      gateway.onSceneStateChange((value) => {
-        if (get().role !== "GM") return;
-        try {
-          const { state } = readState(value);
-          set({ state, status: get().role === "GM" ? "READY" : "PLAYER", error: undefined });
-          void gateway.setBadge(Object.keys(state.combatants).length);
-        } catch {
-          set({ status: "INVALID", error: "A metadata da Rulebear nesta cena é inválida. Ela não foi sobrescrita." });
-        }
-      }),
-      gateway.onItemsChange((tokens) => {
-        if (get().role !== "GM") return;
-        set({ tokens });
-        if (get().role !== "GM" || get().status !== "READY") return;
-        const current = get().state;
-        const next = cleanupMissingTokens(current, new Set(tokens.map((token) => token.id)));
-        if (next !== current) void get().persist(next, "Token removido da cena; combatente removido da Rulebear.");
-      }),
-      gateway.onThemeChange((themeMode) => {
-        document.documentElement.dataset.theme = themeMode.toLowerCase();
-        set({ theme: themeMode });
-      }),
-      gateway.onPendingToken((tokenId) => set({ pendingTokenId: tokenId })),
+      gateway.onSceneReadyChange(() => { set({ online: false, pendingTokenId: undefined }); void get().refreshScene(); }),
+      gateway.onSceneStateChange(() => void get().refreshScene()),
+      gateway.onItemsChange((tokens) => set({ tokens })),
+      gateway.onParticipantsChange(() => void updateParty().catch(() => set({ online: false }))),
+      gateway.onThemeChange((theme) => { document.documentElement.dataset.theme = theme.toLowerCase(); set({ theme }); }),
+      gateway.onPendingToken((tokenId) => { if (get().role === "GM") set({ pendingTokenId: tokenId }); }),
     ];
-    const pendingTokenId = await gateway.consumePendingToken();
-    if (pendingTokenId) set({ pendingTokenId });
-    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+    const pending = await gateway.consumePendingToken();
+    if (pending && self.role === "GM") set({ pendingTokenId: pending });
+    return () => { unsubscribers.forEach((off) => off()); instance.dispose(); if (client === instance) client = undefined; };
   },
-
   async refreshScene() {
-    const { gateway, role } = get();
-    if (!gateway) return;
-    const ready = await gateway.isSceneReady();
-    if (!ready) {
-      set({ status: "NO_SCENE", tokens: [], state: createEmptyState() });
-      await gateway.setBadge(0);
-      return;
-    }
-    if (role !== "GM") {
-      set({ status: "PLAYER", tokens: [], state: createEmptyState(), error: undefined });
-      await gateway.setBadge(0);
-      return;
-    }
+    const { gateway } = get(); if (!gateway) return;
+    if (!await gateway.isSceneReady()) { set({ status: "NO_SCENE", tokens: [], state: createEmptyState(), online: false }); return; }
     try {
-      const [value, tokens] = await Promise.all([gateway.readSceneState(), gateway.getCharacterTokens()]);
-      const { state } = readState(value);
-      const cleaned = cleanupMissingTokens(state, new Set(tokens.map((token) => token.id)));
-      set({ state: cleaned, tokens, status: "READY", error: undefined });
-      if (cleaned !== state) await gateway.writeSceneState(cleaned);
-      await gateway.setBadge(Object.keys(cleaned.combatants).length);
-    } catch {
-      set({ status: "INVALID", error: "A metadata da Rulebear nesta cena é inválida. Ela não foi sobrescrita." });
-    }
+      const [raw, tokens] = await Promise.all([gateway.readSceneState(), gateway.getCharacterTokens()]);
+      const state = raw ? isLegacyState(raw) ? migrateLegacyState(raw) : parseSceneState(raw) : createEmptyState();
+      set({ state, tokens, status: "READY" });
+      // A generic badge cannot reveal the number of hidden combatants to players.
+      await gateway.setBadge(0);
+    } catch { set({ status: "INVALID", online: false, error: "Os dados da cena são inválidos ou de outra versão. Eles não foram sobrescritos." }); }
   },
-
-  async persist(next, notice) {
-    const { gateway, state: previous } = get();
-    if (!gateway) return;
+  async command(command, revision) {
+    if (!client || get().busy) return false;
+    set({ busy: true, error: undefined, notice: undefined });
     try {
-      const checked = parseSceneState(next);
-      set({ state: checked, notice, error: undefined });
-      await gateway.writeSceneState(checked);
-      await gateway.setBadge(Object.keys(checked.combatants).length);
+      await client.dispatch({ ...get().state, revision: revision ?? get().state.revision }, command);
+      await get().refreshScene();
+      set({ notice: "Alteração salva." });
+      return true;
     } catch (error) {
-      set({ state: previous, error: error instanceof Error ? error.message : "Não foi possível salvar a cena." });
-      throw error;
-    }
+      set({ error: error instanceof Error ? error.message : "Não foi possível aplicar a ação." });
+      return false;
+    } finally { set({ busy: false }); }
   },
-
   async requestSelectedToken() {
-    const { gateway, state } = get();
-    if (!gateway) return;
+    const { gateway, state, role } = get(); if (!gateway || role !== "GM") return;
     const token = await gateway.getSelectedToken();
-    if (!token) {
-      set({ error: "Selecione exatamente um token da camada Personagem." });
-      return;
-    }
-    if (state.combatants[token.id]) {
-      set({ error: "Este token já está na Rulebear." });
-      return;
-    }
-    set({ pendingTokenId: token.id, error: undefined });
+    if (!token) { set({ error: "Selecione exatamente um token da camada Personagem." }); return; }
+    if (state.combatants[token.id]) { set({ error: "Este token já está na Rulebear." }); return; }
+    set({ pendingTokenId: token.id });
   },
-
-  setPendingToken(tokenId) {
-    set({ pendingTokenId: tokenId });
-  },
-
+  setPendingToken(pendingTokenId) { set({ pendingTokenId }); },
   clearMessage() { set({ error: undefined, notice: undefined }); },
+  setPreferences(preferences) {
+    const { self, gateway } = get(); if (!self || !gateway) return;
+    try {
+      savePreferences(gateway.getRoomId(), self.id, preferences); set({ preferences });
+      void gateway.sendMessage({ type: "preferences", playerId: self.id }).catch(() => {});
+    } catch { set({ error: "Não foi possível salvar a preferência neste navegador." }); }
+  },
 }));

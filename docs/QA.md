@@ -1,50 +1,42 @@
-# Checklist de aceitação
+# Validação da Rulebear 2.0.0
 
-## Automatizado
+## Automatizada
 
-- [ ] `npm run lint`
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] `npm run build:pages`
-- [ ] `npm audit --audit-level=high`
-- [ ] JavaScript e CSS de produção abaixo de 500 KB gzip
-- [ ] nenhum source map em `dist/`
+Validação local em 12/09/2026: lint e tipos passaram; 77 testes passaram em 10 arquivos. Build de produção verificado sob /ProjetosRpg/, sem source maps. Auditoria sem ocorrências altas ou críticas.
 
-Auditoria local: dois avisos moderados na cadeia do SDK Owlbear → uuid, sem correção disponível reportada pelo npm. Nenhum aviso alto ou crítico.
+A suíte cobre:
+- regras existentes de dano, cura, reduções, dados, condições e manifesto;
+- migração v1, preservação do original, restrições iniciais, dados inválidos e versões futuras;
+- audiências, responsabilidade, ações autorizadas, porcentagem e histórico filtrado;
+- ordem estável, turno/rodada, efeitos combinados, inclusão/remoção e Undo atômico;
+- importação dos quatro tipos, mapeamento HP, excesso de marcadores e origem preservada;
+- preferências por usuário, sala e cena;
+- fila, comandos simultâneos/desatualizados, deduplicação persistente, falha de escrita, remetente forjado, mudança de cena, eleição, troca de coordenador e ausência de mestre;
+- migração bloqueada quando backup falha; confirmação expirada sem repetição;
+- painel GM/jogadores, prévia, mudança de papel, revogação e preferências offline;
+- overlays locais, HP único, porcentagem, posição, movimento/escala, tokens ocultos e preservação de itens de outras extensões.
 
-## Sala real
+Os testes de SDK e múltiplos participantes usam transporte e cenas simulados. Não substituem uma sessão real de navegador.
 
-- [ ] instalar pelo manifesto público HTTPS com o servidor local desligado
-- [ ] confirmar interface completa como GM e mensagem privada como jogador
-- [ ] confirmar menu somente com um `IMAGE` em `CHARACTER`
-- [ ] rejeitar zero, vários, outro tipo/camada e token duplicado
-- [ ] adicionar pelo menu e pelo botão de token selecionado
-- [ ] renomear token e observar o novo nome sem editar estado
-- [ ] excluir token e observar remoção do combatente
-- [ ] recarregar e comparar duas janelas conectadas
-- [ ] aplicar dano, categorias, bypass, cura, reduções e Undo
-- [ ] testar stacks, duração e efeitos no início/fim do turno
-- [ ] confirmar estado sem cena
-- [ ] testar temas claro/escuro, largura mobile, Chrome, Edge, Firefox e Safari
+## Pendências de validação em sala real
 
-## Lançamento
+Em 12/09/2026, o controle do Windows foi interrompido pelo usuário com Escape antes da conferência visual. Nenhuma interação adicional foi realizada no navegador. Os cenários abaixo permanecem pendentes:
 
-- [ ] tornar `emillysolveranjos/ProjetosRpg` público
-- [ ] habilitar GitHub Pages com fonte GitHub Actions
-- [ ] disparar `pages.yml` manualmente
-- [ ] validar `https://emillysolveranjos.github.io/ProjetosRpg/manifest.json`
-- [ ] confirmar manifesto, ícones, painel e background por HTTPS no caminho `/ProjetosRpg/`
+1. Recarregar a versão pública em uma sala de teste com um GM e dois jogadores distintos.
+2. Adicionar tokens e atribuir responsáveis; conferir visões diferentes, porcentagem, condições e histórico.
+3. Aplicar dano/cura e ajustes simultâneos. Fechar o painel GM e verificar que o background continua atendendo.
+4. Ordenar iniciativa, permitir fim de turno ao jogador ativo e testar Undo de efeitos de fim/início.
+5. Colocar marcadores acima para um participante e abaixo para outro; verificar escala, rotação, movimento, recarga, troca de cena e visibilidade/neblina.
+6. Importar Owl Trackers, revisar cores/valores e desativá-lo na sala após conferir.
+7. Desconectar o coordenador, testar sucessão por outro GM e bloquear alterações quando todos os GMs saírem.
+8. Conferir migração de uma cópia de cena v1 e baixar o backup.
 
-A submissão à loja está fora desta publicação por link. As capturas e o arquivo de catálogo são rascunhos para uma etapa futura.
+## Dependências
 
+A auditoria atual encontra duas ocorrências moderadas transitivas na cadeia SDK → uuid, relativas a GHSA-w5hq-g745-h8pq; não há correção disponível informada pelo npm para essa cadeia. Nenhuma dependência foi acrescentada nesta ampliação. A publicação exige ausência de ocorrências altas ou críticas.
 
-## Validação da publicação — 2026-09-11
+## Publicação
 
-- Commit de publicação: `05536bf`.
-- Workflow manual: https://github.com/emillysolveranjos/ProjetosRpg/actions/runs/34645947260 — verificações, build e deploy concluídos com sucesso.
-- Lint, tipos e 40 testes passaram localmente; o workflow também passou no GitHub.
-- Build público: 118087 bytes de JavaScript/CSS gzip, sem source maps.
-- Manifesto, ícone, painel, background e recursos vinculados: HTTP 200 por HTTPS.
-- Manifesto servido como JSON com CORS permitido; todos os caminhos usam `/ProjetosRpg/`.
-- Porta 5174 sem servidor ativo.
-- Testes manuais na sala (instalação, GM/jogador, dano/cura/Undo e recarga): pendentes de validação interativa.
+O workflow manual precisa terminar com sucesso. Conferir por HTTPS manifesto 2.0.0, action.html, background.html, icon.svg, action-icon.svg e os JS/CSS referenciados sob /ProjetosRpg/. O pacote hospedado não deve conter source maps nem node_modules.
+
+Rollback do código não converte cenas v2 para v1; preserve/exporte os backups antes de uma recuperação.

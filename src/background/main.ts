@@ -1,7 +1,13 @@
+import { BrowserOwlbearGateway } from "../owlbear/browser";
+import { startCoordinator } from "../owlbear/sync";
+import { startOverlays } from "./overlays";
 import OBR, { isImage } from "@owlbear-rodeo/sdk";
 import { PLUGIN_ID, PENDING_TOKEN_KEY } from "../config";
 
 async function register(): Promise<void> {
+  const gateway = new BrowserOwlbearGateway();
+  startCoordinator(gateway);
+  startOverlays(gateway);
   const iconUrl = new URL("./action-icon.svg", window.location.href).href;
   await OBR.action.setIcon(iconUrl);
   await OBR.contextMenu.create({
