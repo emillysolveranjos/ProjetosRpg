@@ -41,6 +41,6 @@ A auditoria atual encontra duas ocorrências moderadas transitivas na cadeia SDK
 
 ## Publicação
 
-Esta revisão está preparada localmente, ainda sem publicação. O workflow manual precisa terminar com sucesso. Conferir por HTTPS manifesto 2.1.0, action.html, background.html, icon.svg, action-icon.svg e os JS/CSS referenciados sob /ProjetosRpg/. O pacote hospedado não deve conter source maps nem node_modules.
+A versão 2.1.0 foi publicada com sucesso pelo workflow manual da branch `main`. Manifesto, action.html, background.html, icon.svg, action-icon.svg e os JS/CSS referenciados responderam por HTTPS sob `/ProjetosRpg/`; o pacote hospedado não contém source maps nem node_modules.
 
 Rollback do código não converte cenas v3 para versões anteriores; preserve/exporte os backups antes de uma recuperação.
