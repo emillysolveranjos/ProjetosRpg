@@ -10,12 +10,15 @@ const OWNER_KEY = PLUGIN_ID + "/overlay";
 const VERSION_KEY = PLUGIN_ID + "/overlay-version";
 const isOwn = (item: Item) => item.metadata[OWNER_KEY] === true || item.id.startsWith(PLUGIN_ID + "/");
 interface CachedToken { geometry: string; signature: string; bounds: Bounds; labels: OverlayLabel[] }
+// Layout coordinates are top-left; a DOWN label is anchored at bottom-center.
+// Lock screen-space compensation so label dimensions stay in scene units.
 function build(tokenId: string, label: OverlayLabel): Item {
   return {
     ...buildLabel().id(`${PLUGIN_ID}/${tokenId}/${label.key}`).name(label.name).plainText(label.text)
       .fontSize(label.fontSize).fontWeight(700).fontFamily("sans-serif").lineHeight(1).textAlign("CENTER").textAlignVertical("MIDDLE")
-      .width(label.width).height(label.height).padding(0).position({ x: label.x, y: label.y }).fillColor("#ffffff")
-      .backgroundColor(label.color).backgroundOpacity(label.opacity).cornerRadius(label.radius).pointerHeight(0).pointerWidth(0).build(),
+      .width(label.width).height(label.height).padding(0).position({ x: label.x + label.width / 2, y: label.y + label.height }).fillColor("#ffffff")
+      .backgroundColor(label.color).backgroundOpacity(label.opacity).cornerRadius(label.radius).pointerHeight(0).pointerWidth(0).pointerDirection("DOWN")
+      .minViewScale(1).maxViewScale(1).build(),
     attachedTo: tokenId, locked: true, disableHit: true, layer: "ATTACHMENT", zIndex: label.zIndex,
     disableAttachmentBehavior: ["ROTATION", "SCALE"], metadata: { [OWNER_KEY]: true, [VERSION_KEY]: 3 },
   };

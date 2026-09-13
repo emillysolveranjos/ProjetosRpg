@@ -1,8 +1,12 @@
-# Validação da Rulebear 2.1.0
+# Validação da Rulebear 2.1.1
+
+## Correção de alinhamento 2.1.1
+
+Conversão explícita entre o canto superior esquerdo do layout e a âncora inferior central dos Labels (DOWN, sem ponteiro). A compensação de escala da viewport fica limitada a 1 para manter todas as camadas em unidades da cena. Os 18 cenários de regressão verificam as combinações de posição, alinhamento e tamanho com HP parcial, sobrevida e negativo. A geometria do SDK é simulada; a conferência em uma sala real permanece pendente.
 
 ## Automatizada
 
-Validação local em 13/09/2026: lint e tipos passaram; 97 testes passaram em 11 arquivos. Build de produção verificado sob /ProjetosRpg/, sem source maps. Auditoria sem ocorrências altas ou críticas.
+Validação local em 13/09/2026: lint e tipos passaram; 115 testes passaram em 11 arquivos. Build de produção verificado sob /ProjetosRpg/, sem source maps. Auditoria sem ocorrências altas ou críticas.
 
 A suíte cobre:
 - regras existentes de dano, cura, reduções, dados, condições e manifesto;

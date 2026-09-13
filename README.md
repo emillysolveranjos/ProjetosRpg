@@ -7,7 +7,7 @@ Extensão do [Owlbear Rodeo](https://www.owlbear.rodeo/) para mestres e jogadore
 1. No perfil do Owlbear, abra **Extensions → Add Extension**.
 2. Cole [o link de instalação](https://emillysolveranjos.github.io/ProjetosRpg/manifest.json).
 3. Na sala, habilite **Rulebear** em **Extensions** e abra o botão do urso.
-4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.1.0.
+4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.1.1.
 
 Sem servidor local, conta GitHub ou login adicional. Distribuição por link; não está na loja do Owlbear. Desative instalações locais antigas na sala para não executar duas versões sobre o mesmo encontro.
 

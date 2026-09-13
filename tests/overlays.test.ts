@@ -62,7 +62,7 @@ describe("marcadores locais", () => {
     savePreferences("room", "p", { position: "TOP", horizontal: "CENTER", size: "MEDIUM", overrides: {} });
     api.metadata = { [STATE_KEY]: s }; stop = startOverlays(p); await settle();
     expect(api.locals.find((i) => String(i.id).endsWith("/label"))?.plainText).toBe("50%");
-    expect((api.locals[0]!.position as { y: number }).y).toBeLessThan(0);
+    expect((api.locals[0]!.position as { y: number }).y).toBeCloseTo(6.5);
     api.tokens[0]!.visible = false; p.states.forEach((cb) => cb(s)); await settle();
     expect(api.locals).toHaveLength(0);
   });
@@ -74,7 +74,8 @@ describe("marcadores locais", () => {
     await gm.sendMessage({ type: "preferences", playerId: "gm" }); await settle();
     const background = api.locals.find((i) => String(i.id).endsWith("/bg"))!;
     expect(background.width).toBe(135);
-    expect(background.position).toMatchObject({ x: -67.5, y: 91.225 });
+    expect((background.position as { x: number }).x).toBe(0);
+    expect((background.position as { y: number }).y).toBeCloseTo(108.775);
     expect(api.reads).toBe(reads);
     expect(n.writes).toBe(0);
   });
@@ -85,7 +86,7 @@ describe("marcadores locais", () => {
     api.bounds = { min: { x: 200, y: 200 }, max: { x: 400, y: 400 }, center: { x: 300, y: 300 }, width: 200, height: 200 };
     api.tokens[0]!.position = { x: 300, y: 300 }; p.states.forEach((cb) => cb(s)); await settle();
     expect(api.locals.find((i) => String(i.id).endsWith("/bg"))?.width).toBe(200);
-    expect((api.locals[0]!.position as { y: number }).y).toBe(390);
+    expect((api.locals[0]!.position as { y: number }).y).toBe(410);
     s.combatants.a!.settings.visibility.identity.mode = "GM"; p.states.forEach((cb) => cb(s)); await settle();
     expect(api.locals).toHaveLength(0);
   });
@@ -134,4 +135,41 @@ describe("marcadores locais", () => {
     expect(api.locals.find((i) => String(i.id).endsWith("/label"))?.plainText).toBe("3/10");
     expect(api.locals.some((i) => i.id === "other")).toBe(true);
   });
+});
+
+describe("âncoras dos rótulos no SDK", () => {
+  for (const position of ["TOP", "BOTTOM"] as const) {
+    for (const horizontal of ["LEFT", "CENTER", "RIGHT"] as const) {
+      for (const size of ["SMALL", "MEDIUM", "LARGE"] as const) {
+        it(`alinha fundo, preenchimento e texto em ${position}/${horizontal}/${size}`, async () => {
+          const n = new Network(), gm = n.join("gm", "GM");
+          const s = addCombatant(createEmptyState(), "a", 13, 20);
+          api.bounds = { min: { x: 200, y: 300 }, max: { x: 400, y: 500 }, center: { x: 300, y: 400 }, width: 200, height: 200 };
+          savePreferences("room", "gm", { position, horizontal, size, overrides: {} });
+          api.metadata = { [STATE_KEY]: s }; stop = startOverlays(gm); await settle();
+          // DOWN labels extend up from their bottom-center anchor.
+          const rect = (suffix: string) => {
+            const item = api.locals.find((i) => String(i.id).endsWith(suffix))!;
+            const anchor = item.position as { x: number; y: number };
+            const width = item.width as number, height = item.height as number;
+            expect(item).toMatchObject({ pointerDirection: "DOWN", pointerHeight: 0, minViewScale: 1, maxViewScale: 1 });
+            return { left: anchor.x - width / 2, right: anchor.x + width / 2, top: anchor.y - height, width, height };
+          };
+          const bg = rect("/bg"), fill = rect("/fill"), text = rect("/label");
+          expect((bg.left + bg.right) / 2).toBe(horizontal === "LEFT" ? 200 : horizontal === "RIGHT" ? 400 : 300);
+          expect(bg.top + bg.height / 2).toBeCloseTo(position === "TOP" ? 300 : 500);
+          expect(fill.left).toBeCloseTo(bg.left);
+          expect(fill.top).toBeCloseTo(bg.top);
+          expect(fill.width / bg.width).toBeCloseTo(.65);
+          expect(text).toEqual(bg);
+          s.combatants.a!.currentHp = 25; gm.states.forEach((cb) => cb(s)); await settle();
+          expect(rect("/over").right).toBeCloseTo(bg.right);
+          s.combatants.a!.currentHp = -5; gm.states.forEach((cb) => cb(s)); await settle();
+          expect(rect("/label")).toEqual(bg);
+          expect(api.locals.some((i) => String(i.id).endsWith("/fill") || String(i.id).endsWith("/over"))).toBe(false);
+          expect(n.writes).toBe(0);
+        });
+      }
+    }
+  }
 });
