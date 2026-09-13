@@ -21,7 +21,7 @@ export function markerText(m: Marker, c: CombatantState, viewer: Viewer): string
   const { value, maximum } = markerNumbers(m, c);
   if (m.kind === "checkbox") return m.checked ? "✓" : "○";
   if (m.kind !== "bar") return String(value);
-  if (viewer.role !== "GM" && m.display === "PERCENT") return `${Math.round(Math.max(0, Math.min(1, value / maximum)) * 100)}%`;
+  if (viewer.role !== "GM" && m.display === "PERCENT") return `${Math.round(value / maximum * 100)}%`;
   return `${value}/${maximum}`;
 }
 export function visibleHistory(state: RulebearSceneState, viewer: Viewer): HistoryEntry[] {

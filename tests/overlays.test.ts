@@ -42,18 +42,41 @@ describe("marcadores locais", () => {
     expect(api.locals).toHaveLength(3);
     expect(api.locals.find((i) => String(i.id).endsWith("/label"))?.plainText).toBe("5/10");
     expect(api.locals.every((i) => i.attachedTo === "a" && i.disableHit === true)).toBe(true);
+    expect(api.locals.every((i) => (i.metadata as Record<string, unknown>)["io.github.samuelsanjos.rulebear/overlay-version"] === 3)).toBe(true);
     expect(api.locals.find((i) => String(i.id).endsWith("/fill"))?.width).toBe(50);
     expect(n.writes).toBe(0);
+  });
+  it("centraliza o valor na barra, mostra sobrevida e remove preenchimento no negativo", async () => {
+    const n = new Network(), gm = n.join("gm", "GM"), s = addCombatant(createEmptyState(), "a", 25, 20);
+    api.metadata = { [STATE_KEY]: s }; stop = startOverlays(gm); await settle();
+    const label = api.locals.find((i) => String(i.id).endsWith("/label"))!;
+    expect(label).toMatchObject({ plainText: "25/20", textAlign: "CENTER", textAlignVertical: "MIDDLE", fillColor: "#ffffff" });
+    expect(api.locals.find((i) => String(i.id).endsWith("/over"))).toMatchObject({ width: 25, backgroundColor: "#3b82f6" });
+    s.combatants.a!.currentHp = -5; gm.states.forEach((cb) => cb(s)); await settle();
+    expect(api.locals.find((i) => String(i.id).endsWith("/label"))?.plainText).toBe("-5/20");
+    expect(api.locals.some((i) => String(i.id).endsWith("/fill") || String(i.id).endsWith("/over"))).toBe(false);
   });
   it("respeita porcentagem, preferência pessoal e token oculto", async () => {
     const n = new Network(), p = n.join("p", "PLAYER"), s = addCombatant(createEmptyState(), "a", 5, 10), c = s.combatants.a!;
     c.settings.visibility.identity.mode = "ALL"; c.markers[0]!.audience.mode = "ALL"; c.markers[0]!.display = "PERCENT";
-    savePreferences("room", "p", { position: "TOP", overrides: {} });
+    savePreferences("room", "p", { position: "TOP", horizontal: "CENTER", size: "MEDIUM", overrides: {} });
     api.metadata = { [STATE_KEY]: s }; stop = startOverlays(p); await settle();
     expect(api.locals.find((i) => String(i.id).endsWith("/label"))?.plainText).toBe("50%");
     expect((api.locals[0]!.position as { y: number }).y).toBeLessThan(0);
     api.tokens[0]!.visible = false; p.states.forEach((cb) => cb(s)); await settle();
     expect(api.locals).toHaveLength(0);
+  });
+  it("atualiza alinhamento e tamanho por mensagem sem gravar na cena", async () => {
+    const n = new Network(), gm = n.join("gm", "GM"), s = addCombatant(createEmptyState(), "a", 5, 10);
+    api.metadata = { [STATE_KEY]: s }; stop = startOverlays(gm); await settle();
+    const reads = api.reads;
+    savePreferences("room", "gm", { position: "BOTTOM", horizontal: "LEFT", size: "LARGE", overrides: {} });
+    await gm.sendMessage({ type: "preferences", playerId: "gm" }); await settle();
+    const background = api.locals.find((i) => String(i.id).endsWith("/bg"))!;
+    expect(background.width).toBe(135);
+    expect(background.position).toMatchObject({ x: -67.5, y: 91.225 });
+    expect(api.reads).toBe(reads);
+    expect(n.writes).toBe(0);
   });
   it("reconstrói após movimento/escala e remove ao revogar acesso", async () => {
     const n = new Network(), p = n.join("p", "PLAYER"), s = addCombatant(createEmptyState(), "a", 5, 10);
@@ -68,7 +91,7 @@ describe("marcadores locais", () => {
   });
   it("não remove elementos locais pertencentes a outras extensões", async () => {
     const n = new Network(), gm = n.join("gm", "GM");
-    api.locals = [{ id: "other-extension", metadata: {} }];
+    api.locals = [{ id: "other-extension", metadata: {} }, { id: "io.github.samuelsanjos.rulebear/a/hp/legacy", metadata: {} }];
     api.metadata = { [STATE_KEY]: createEmptyState() };
     stop = startOverlays(gm); await settle();
     expect(api.locals).toEqual([{ id: "other-extension", metadata: {} }]);

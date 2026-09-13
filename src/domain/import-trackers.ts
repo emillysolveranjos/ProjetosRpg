@@ -23,7 +23,7 @@ export function mergeImported(existing: Marker[], candidates: ImportCandidate[],
   for (const candidate of candidates) {
     const m = structuredClone(candidate.marker);
     if (candidate.sourceId === hpSource) {
-      if (m.kind !== "bar" || !Number.isInteger(m.maximum) || !Number.isInteger(m.value) || m.value < 0 || m.value > m.maximum) throw new Error("A barra escolhida como HP precisa ter valores inteiros entre zero e o máximo.");
+      if (m.kind !== "bar" || !Number.isSafeInteger(m.maximum) || m.maximum < 1 || m.maximum > 2_147_483_647 || !Number.isSafeInteger(m.value) || Math.abs(m.value) > 2_147_483_647) throw new Error("A barra escolhida como HP precisa ter valores inteiros válidos e máximo positivo.");
       m.hp = true; m.id = markers.find((item) => item.hp)?.id ?? "hp";
       hpValues = { currentHp: m.value, maximumHp: m.maximum }; m.value = 0; m.maximum = 1;
       markers = markers.map((old) => old.hp ? m : old);

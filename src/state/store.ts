@@ -18,7 +18,7 @@ interface AppStore {
 let client: CommandClient | undefined;
 export const useAppStore = create<AppStore>((set, get) => ({
   status: "LOADING", role: "PLAYER", theme: "DARK", participants: [], online: false, busy: false,
-  state: createEmptyState(), tokens: [], preferences: { position: "BOTTOM", overrides: {} },
+  state: createEmptyState(), tokens: [], preferences: { position: "BOTTOM", horizontal: "CENTER", size: "MEDIUM", overrides: {} },
   async initialize(gateway) {
     client?.dispose(); client = undefined;
     if (!gateway) { set({ status: "OUTSIDE" }); return () => {}; }

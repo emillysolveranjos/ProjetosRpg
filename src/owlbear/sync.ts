@@ -3,15 +3,17 @@ import type { Participant, RulebearSceneState } from "../domain/types";
 import { executeCommand, type Command, type CommandEnvelope } from "../domain/commands";
 import { createEmptyState, isLegacyState, migrateLegacyState, parseSceneState } from "../state/schema";
 export const CHANNEL = "io.github.samuelsanjos.rulebear/v2";
-export interface Peer { connectionId: string; session: string; seen: number; ready: boolean }
+export const PROTOCOL_VERSION = 3;
+export interface Peer { connectionId: string; session: string; seen: number; ready: boolean; protocol: number }
 export function elect(peers: Peer[], participants: Participant[], now = Date.now()): Peer | undefined {
-  return peers.filter((p) => now - p.seen < 6500 && participants.some((u) => u.connectionId === p.connectionId && u.role === "GM")).sort((a, b) => a.connectionId.localeCompare(b.connectionId))[0];
+  return peers.filter((p) => p.protocol === PROTOCOL_VERSION && now - p.seen < 6500 && participants.some((u) => u.connectionId === p.connectionId && u.role === "GM")).sort((a, b) => a.connectionId.localeCompare(b.connectionId))[0];
 }
 export class CommandProcessor {
   private queue: Promise<unknown> = Promise.resolve();
   constructor(private gateway: OwlbearGateway, private isCurrent: () => boolean) {}
   process(envelope: CommandEnvelope, actor: Participant): Promise<void> {
     const action = this.queue.then(async () => {
+      if (envelope.protocol !== PROTOCOL_VERSION) throw new Error("Versão incompatível. Recarregue a Rulebear em todos os participantes.");
       if (!this.isCurrent()) throw new Error("Coordenador mudou. Aguarde a sincronização.");
       if (!await this.gateway.isSceneReady()) throw new Error("A cena está indisponível.");
       const state = parseSceneState(await this.gateway.readSceneState());
@@ -57,7 +59,7 @@ export function startCoordinator(gateway: OwlbearGateway): () => void {
     self = await gateway.getSelf();
     const sceneReady = await gateway.isSceneReady();
     if (!sceneReady || self.role !== "GM") { ready = false; peers.delete(self.connectionId); }
-    else peers.set(self.connectionId, { connectionId: self.connectionId, session, seen: Date.now(), ready });
+    else peers.set(self.connectionId, { connectionId: self.connectionId, session, seen: Date.now(), ready, protocol: PROTOCOL_VERSION });
     const leader = elect([...peers.values()], participants);
     const next = sceneReady && leader ? leader.connectionId + "/" + leader.session : "";
     if (next !== selected) { selected = next; changedAt = Date.now(); ready = false; }
@@ -75,33 +77,37 @@ export function startCoordinator(gateway: OwlbearGateway): () => void {
         } else parseSceneState(raw);
         if (valid()) ready = true;
       } catch (error) {
-        await send({ type: "coordinatorError", message: error instanceof Error ? error.message : "Não foi possível abrir a cena." });
+        await send({ type: "coordinatorError", protocol: PROTOCOL_VERSION, message: error instanceof Error ? error.message : "Não foi possível abrir a cena." });
       } finally { initializing = false; }
     }
     if (current()) {
       const state = parseSceneState(await gateway.readSceneState());
       const tokens = await gateway.getCharacterTokens();
       const missing = Object.keys(state.combatants).filter((id) => !tokens.some((t) => t.id === id));
-      if (missing.length) await processor.process({ id: crypto.randomUUID(), coordinator: token(), sceneId: state.sceneId, revision: state.revision, command: { type: "prune", tokenIds: missing } }, self);
+      if (missing.length) await processor.process({ protocol: PROTOCOL_VERSION, id: crypto.randomUUID(), coordinator: token(), sceneId: state.sceneId, revision: state.revision, command: { type: "prune", tokenIds: missing } }, self);
     }
-    await send({ type: "presence", session, ready: current(), sceneReady, role: self.role });
+    await send({ type: "presence", protocol: PROTOCOL_VERSION, session, ready: current(), sceneReady, role: self.role });
   }
   const unsubscribe = gateway.onMessage((data, connectionId) => {
     const message = object(data);
     if (!message) return;
-    if (message.type === "presence" && typeof message.session === "string") {
-      if (message.sceneReady) peers.set(connectionId, { connectionId, session: message.session, seen: Date.now(), ready: message.ready === true });
+    if (message.type === "presence" && message.protocol === PROTOCOL_VERSION && typeof message.session === "string") {
+      if (message.sceneReady) peers.set(connectionId, { connectionId, session: message.session, seen: Date.now(), ready: message.ready === true, protocol: PROTOCOL_VERSION });
       else peers.delete(connectionId);
     }
-    if (message.type === "discover") void send({ type: "presence", session, ready: current(), sceneReady: !!selected });
+    if (message.type === "discover") void send({ type: "presence", protocol: PROTOCOL_VERSION, session, ready: current(), sceneReady: !!selected });
     if (message.type === "command" && current()) {
       const envelope = message.envelope as CommandEnvelope | undefined;
       if (!envelope || typeof envelope.id !== "string" || envelope.id.length > 200 || envelope.coordinator !== token() || !object(envelope.command)) return;
+      if (envelope.protocol !== PROTOCOL_VERSION) {
+        void send({ type: "result", protocol: PROTOCOL_VERSION, id: envelope.id, coordinator: token(), ok: false, message: "Versão incompatível. Recarregue a Rulebear em todos os participantes." });
+        return;
+      }
       const actor = participants.find((p) => p.connectionId === connectionId);
       if (!actor) return;
       void processor.process(envelope, actor).then(
-        () => send({ type: "result", id: envelope.id, coordinator: token(), ok: true }),
-        (error: unknown) => send({ type: "result", id: envelope.id, coordinator: token(), ok: false, message: error instanceof Error ? error.message : "Não foi possível aplicar a ação." }),
+        () => send({ type: "result", protocol: PROTOCOL_VERSION, id: envelope.id, coordinator: token(), ok: true }),
+        (error: unknown) => send({ type: "result", protocol: PROTOCOL_VERSION, id: envelope.id, coordinator: token(), ok: false, message: error instanceof Error ? error.message : "Não foi possível aplicar a ação." }),
       );
     }
   });
@@ -123,17 +129,17 @@ export class CommandClient {
     this.unsubscribe = gateway.onMessage((data, connectionId) => {
       const message = object(data);
       if (!message) return;
-      if (message.type === "presence" && typeof message.session === "string") {
-        if (message.sceneReady) this.peers.set(connectionId, { connectionId, session: message.session, ready: message.ready === true, seen: Date.now() });
+      if (message.type === "presence" && message.protocol === PROTOCOL_VERSION && typeof message.session === "string") {
+        if (message.sceneReady) this.peers.set(connectionId, { connectionId, session: message.session, ready: message.ready === true, seen: Date.now(), protocol: PROTOCOL_VERSION });
         else this.peers.delete(connectionId);
         void this.refresh();
       }
-      if (message.type === "coordinatorError" && this.leader?.connectionId === connectionId) {
+      if (message.type === "coordinatorError" && message.protocol === PROTOCOL_VERSION && this.leader?.connectionId === connectionId) {
         void this.gateway.getSelf().then((self) => {
           if (self.role === "GM") this.onError?.("Não foi possível preparar a cena ou salvar o backup. Confira o armazenamento do navegador e os dados da cena.");
         });
       }
-      if (message.type === "result" && typeof message.id === "string") {
+      if (message.type === "result" && message.protocol === PROTOCOL_VERSION && typeof message.id === "string") {
         const item = this.pending.get(message.id);
         if (!item || item.coordinator !== message.coordinator || !item.coordinator.startsWith(connectionId + "/")) return;
         clearTimeout(item.timer); this.pending.delete(message.id);
@@ -141,7 +147,7 @@ export class CommandClient {
       }
     });
     this.timer = setInterval(() => void this.refresh(), 1500);
-    void gateway.sendMessage({ type: "discover" }).catch(() => {});
+    void gateway.sendMessage({ type: "discover", protocol: PROTOCOL_VERSION }).catch(() => {});
     void this.refresh();
   }
   private async refresh() {
@@ -155,7 +161,7 @@ export class CommandClient {
     await this.refresh();
     if (!this.leader?.ready) throw new Error("Aguarde um mestre conectado e a sincronização.");
     const coordinator = this.leader.connectionId + "/" + this.leader.session;
-    const envelope: CommandEnvelope = { id: crypto.randomUUID(), sceneId: state.sceneId, revision: state.revision, coordinator, command };
+    const envelope: CommandEnvelope = { protocol: PROTOCOL_VERSION, id: crypto.randomUUID(), sceneId: state.sceneId, revision: state.revision, coordinator, command };
     if (new TextEncoder().encode(JSON.stringify(envelope)).length > 15000) throw new Error("Esta alteração é grande demais. Salve em partes.");
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -163,7 +169,7 @@ export class CommandClient {
         reject(new Error("A confirmação não chegou. Confira o estado antes de tentar novamente; a ação não será repetida automaticamente."));
       }, 9000);
       this.pending.set(envelope.id, { resolve, reject, timer, coordinator });
-      void this.gateway.sendMessage({ type: "command", envelope }).catch((error: unknown) => {
+      void this.gateway.sendMessage({ type: "command", protocol: PROTOCOL_VERSION, envelope }).catch((error: unknown) => {
         clearTimeout(timer); this.pending.delete(envelope.id);
         reject(error instanceof Error ? error : new Error("Falha ao enviar a ação."));
       });

@@ -29,10 +29,12 @@ function poison(overrides: Partial<ConditionDefinition> = {}): ConditionDefiniti
 }
 
 describe("dano, cura e reduções", () => {
-  it("aplica dano e impede HP negativo em overkill", () => {
+  it("aplica dano, consome sobrevida e permite HP negativo em overkill", () => {
     const { state, result } = applyDamage(fighter(10), "token-1", "24");
-    expect(result).toMatchObject({ rawAmount: 24, finalAmount: 24, hpBefore: 10, hpAfter: 0 });
-    expect(state.combatants["token-1"]?.currentHp).toBe(0);
+    expect(result).toMatchObject({ rawAmount: 24, finalAmount: 24, hpBefore: 10, hpAfter: -14 });
+    expect(state.combatants["token-1"]?.currentHp).toBe(-14);
+    const over = addCombatant(createEmptyState(), "over", 25, 20);
+    expect(applyDamage(over, "over", "30").state.combatants.over?.currentHp).toBe(-5);
   });
 
   it("aplica reduções universais e categorizadas em sequência", () => {
@@ -66,6 +68,15 @@ describe("dano, cura e reduções", () => {
   it("cura em HP cheio não cria revisão ou histórico", () => {
     const state = fighter(20);
     expect(applyHealing(state, "token-1", 2)).toEqual({ state, recovered: 0 });
+  });
+
+  it("cura soma a partir do negativo e preserva sobrevida existente", () => {
+    const negative = addCombatant(createEmptyState(), "negative", -5, 20);
+    const healed = applyHealing(negative, "negative", 8);
+    expect(healed.recovered).toBe(8);
+    expect(healed.state.combatants.negative?.currentHp).toBe(3);
+    const over = addCombatant(createEmptyState(), "over", 25, 20);
+    expect(applyHealing(over, "over", 8)).toEqual({ state: over, recovered: 0 });
   });
 
   it("desfaz a última alteração compatível", () => {
@@ -104,6 +115,18 @@ describe("condições e turnos", () => {
     state = applyCondition(state, "token-1", "regen");
     state = processTurn(state, "token-1", "TURN_START").state;
     expect(processTurn(state, "token-1", "TURN_END").state.combatants["token-1"]?.currentHp).toBe(15);
+  });
+
+  it("efeitos de condições atravessam zero e curam a partir do negativo", () => {
+    const damage = poison({ effects: [{ id: "damage", trigger: "TURN_START", kind: "DAMAGE", expression: "30", categories: [], multiplyByStacks: false, bypassReductions: false }] });
+    const heal = poison({ id: "heal", name: "Cura", effects: [{ id: "heal", trigger: "TURN_END", kind: "HEAL", expression: "8", categories: [], multiplyByStacks: false, bypassReductions: false }] });
+    let state = addCombatant(createEmptyState(), "token-1", 20, 20);
+    state = saveConditionDefinition(saveConditionDefinition(state, damage), heal);
+    state = applyCondition(applyCondition(state, "token-1", "poison"), "token-1", "heal");
+    state = processTurn(state, "token-1", "TURN_START").state;
+    expect(state.combatants["token-1"]?.currentHp).toBe(-10);
+    state = processTurn(state, "token-1", "TURN_END").state;
+    expect(state.combatants["token-1"]?.currentHp).toBe(-2);
   });
 
   it("respeita limite de stacks", () => {

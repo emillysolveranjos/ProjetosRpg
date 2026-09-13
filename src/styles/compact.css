@@ -32,6 +32,11 @@
 .compact-app .marker-caption > span { color: var(--muted); }
 .compact-app .marker-caption strong { font-variant-numeric: tabular-nums; }
 .compact-app .hp-track { display: block; width: 100%; height: 5px; }
+.compact-app .bar-name { display: block; color: var(--muted); font-size: 10px; margin-bottom: 3px; }
+.compact-app .panel-hp-track { position: relative; height: 18px; overflow: hidden; background: var(--panel-2); }
+.compact-app .panel-hp-track .hp-fill { position: absolute; inset: 0 auto 0 0; height: 100%; border-radius: inherit; }
+.compact-app .panel-hp-track .hp-over { position: absolute; inset: 0 0 0 auto; height: 100%; border-radius: inherit; background: #3b82f6; }
+.compact-app .panel-hp-track strong { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; color: #fff; font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
 .compact-app .badge-value { max-width: 100%; background: var(--panel-2); padding: 5px 8px; }
 .compact-app .badge-value .marker-caption { margin: 0; }
 .compact-app .condition-list { padding: 0 10px 8px; }
@@ -41,6 +46,10 @@
 .compact-app .card-details .button { font-size: 11px; padding: 8px; min-height: 34px; }
 .compact-app .card-details .condition-list { padding: 0; }
 .compact-app .card-details .button-row { margin: 0; }
+.compact-app .display-preference-grid, .compact-app .token-display-options { display: grid; gap: 8px; }
+.compact-app .token-display-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.compact-app .token-display-options label { min-width: 0; font-size: 10px; }
+.compact-app .token-display-options select { width: 100%; min-width: 0; font-size: 11px; }
 .compact-app .quick-form { display: flex; align-items: end; flex-wrap: wrap; gap: 6px; }
 .compact-app .quick-form > label { flex: 1 1 110px; min-width: 0; }
 .compact-app .context-editor { display: grid; gap: 10px; }
@@ -61,6 +70,7 @@
 .compact-app .dialog .flash { margin: 0 0 10px; }
 .compact-app summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 @media (max-width: 350px) {
+  .compact-app .token-display-options { grid-template-columns: 1fr; }
   .compact-app .encounter-strip { gap: 4px; }
   .compact-app .encounter-strip h1 { font-size: 14px; }
   .compact-app .encounter-strip .button { padding-inline: 7px; }

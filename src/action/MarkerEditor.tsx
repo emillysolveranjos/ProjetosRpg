@@ -33,7 +33,7 @@ export function MarkerEditor({ combatant, onClose }: { combatant: CombatantState
     } catch (error) { setError(error instanceof Error ? error.message : "Importação inválida."); }
   }
   return <Dialog title="Marcadores do token" onClose={onClose}><div className="form-stack">
-    <p className="muted">Até 12 marcadores, incluindo HP. As alterações só são aplicadas ao salvar.</p>
+    <p className="muted">Até 12 marcadores, incluindo HP. HP pode ser negativo ou ultrapassar o máximo como sobrevida. As alterações só são aplicadas ao salvar.</p>
     {error && <p role="alert">{error}</p>}
     {markers.map((m, index) => <fieldset className="marker-editor" key={m.id}><legend>{m.hp ? "HP do combate" : "Marcador " + (index + 1)}</legend>
       <div className="form-grid"><label>Nome<input value={m.name} maxLength={50} onChange={(e) => update(m.id, { name: e.target.value })} /></label><label>Cor<input type="color" value={m.color} onChange={(e) => update(m.id, { color: e.target.value })} /></label></div>

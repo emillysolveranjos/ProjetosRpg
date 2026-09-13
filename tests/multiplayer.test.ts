@@ -5,8 +5,9 @@ import { createEmptyState, migrateLegacyState, parseSceneState } from "../src/st
 import { allowed, markerEditable, markerText, markerVisible, visibleCombatant, visibleHistory } from "../src/domain/access";
 import { defaultMarker } from "../src/domain/defaults";
 import { mergeImported, readOwlTrackers } from "../src/domain/import-trackers";
-import { readPreferences, savePreferences, tokenPosition } from "../src/state/preferences";
+import { readPreferences, savePreferences, tokenDisplayLayout, tokenPosition } from "../src/state/preferences";
 import type { Participant } from "../src/domain/types";
+import { PLUGIN_ID } from "../src/config";
 const gm: Participant = { id: "gm", connectionId: "gm", role: "GM", name: "GM" };
 const p: Participant = { id: "p", connectionId: "p", role: "PLAYER", name: "P" };
 const other = { ...p, id: "other", connectionId: "other" };
@@ -15,14 +16,27 @@ function legacy() { return { schemaVersion: 1, revision: 9, combatants: { a: { t
 describe("migração e validação", () => {
   it("preserva estado v1 e inicia acesso restrito, sem modificar a origem", () => {
     const original = legacy(), before = structuredClone(original), result = migrateLegacyState(original);
-    expect(original).toEqual(before); expect(result.schemaVersion).toBe(2); expect(result.combatants.a!.currentHp).toBe(10);
+    expect(original).toEqual(before); expect(result.schemaVersion).toBe(3); expect(result.combatants.a!.currentHp).toBe(10);
     expect(result.activeTokenId).toBe("a"); expect(result.encounter.round).toBe(1);
     expect(visibleCombatant(result.combatants.a!, p)).toBe(false);
     expect(result.combatants.a!.initiative).toBeNull();
   });
+  it("migra v2 preservando encontro, histórico e Undo", () => {
+    const source = scene() as unknown as { schemaVersion: number; revision: number; undo?: unknown; combatants: Record<string, unknown> };
+    source.schemaVersion = 2;
+    const before = structuredClone(source), result = migrateLegacyState(source);
+    expect(source).toEqual(before);
+    expect(result.schemaVersion).toBe(3);
+    expect(result.revision).toBe(before.revision + 1);
+    expect(result.undo).toEqual(before.undo);
+    expect(result.combatants).toEqual(before.combatants);
+  });
   it("não interpreta versões futuras ou HP inválido como cena vazia", () => {
     expect(() => migrateLegacyState({ ...legacy(), schemaVersion: 99 })).toThrow();
     const raw = legacy(); raw.combatants.a.currentHp = 21; expect(() => migrateLegacyState(raw)).toThrow();
+    const v2 = scene() as unknown as { schemaVersion: number; combatants: Record<string, { currentHp: number }> };
+    v2.schemaVersion = 2; v2.combatants.a!.currentHp = 21;
+    expect(() => migrateLegacyState(v2)).toThrow("HP atual");
   });
   it("rejeita ordem duplicada, valores não finitos e duas barras de HP", () => {
     const s = scene(); s.encounter.order = ["a", "a"]; expect(() => parseSceneState(s)).toThrow();
@@ -55,6 +69,8 @@ describe("permissões e superfícies", () => {
     m.audience.mode = "ALL"; m.display = "PERCENT"; m.editable = true;
     expect(markerText(m, c, p)).toBe("50%"); expect(markerEditable(m, c, p)).toBe(false);
     expect(markerText(m, c, gm)).toBe("10/20");
+    c.currentHp = 25; expect(markerText(m, c, p)).toBe("125%");
+    c.currentHp = -5; expect(markerText(m, c, p)).toBe("-25%");
     m.display = "HIDDEN"; expect(markerVisible(m, c, p)).toBe(false);
   });
   it("histórico antigo não revela valores nem condições ocultas", () => {
@@ -114,10 +130,19 @@ describe("recursos e importação", () => {
   it("barra HP e motor de dano usam a mesma fonte", () => {
     let s = scene();
     s = executeCommand(s, { type: "markerValue", tokenId: "a", markerId: "hp", expression: "+999" }, gm);
-    expect(s.combatants.a!.currentHp).toBe(20);
+    expect(s.combatants.a!.currentHp).toBe(1009);
     s = executeCommand(s, { type: "damage", tokenId: "a", expression: "3", categories: [], bypass: false }, gm);
-    expect(markerText(s.combatants.a!.markers[0]!, s.combatants.a!, gm)).toBe("17/20");
+    expect(markerText(s.combatants.a!.markers[0]!, s.combatants.a!, gm)).toBe("1006/20");
     expect(s.combatants.a!.markers[0]!.value).toBe(0);
+    const undone = executeCommand(s, { type: "undo" }, gm);
+    expect(undone.combatants.a!.currentHp).toBe(1009);
+  });
+  it("alterar o máximo não recorta HP negativo nem sobrevida", () => {
+    let s = scene();
+    s = executeCommand(s, { type: "markers", tokenId: "a", markers: s.combatants.a!.markers, currentHp: 25, maximumHp: 10 }, gm);
+    expect(s.combatants.a).toMatchObject({ currentHp: 25, maximumHp: 10 });
+    s = executeCommand(s, { type: "markers", tokenId: "a", markers: s.combatants.a!.markers, currentHp: -7, maximumHp: 30 }, gm);
+    expect(s.combatants.a).toMatchObject({ currentHp: -7, maximumHp: 30 });
   });
   it("importa os quatro tipos e não altera os dados de origem", () => {
     const raw = { "com.owl-trackers/trackers": [{ id: "hp", variant: "value-max", name: "Vida", value: 5, max: 10, color: 0 }, { id: "n", variant: "value", value: -3, color: 1 }, { id: "c", variant: "counter", value: 4, color: 2 }, { id: "x", variant: "checkbox", checked: true, color: 3 }] };
@@ -126,17 +151,30 @@ describe("recursos e importação", () => {
     const result = mergeImported([defaultMarker(true)], candidates, "hp", "append");
     expect(result.markers.length).toBe(4); expect(result.currentHp).toBe(5); expect(raw).toEqual(original);
     expect(result.markers.every((m) => m.audience.mode === "GM")).toBe(true);
+    candidates[0]!.marker.value = 15;
+    expect(mergeImported([defaultMarker(true)], candidates.slice(0, 1), "hp", "replace").currentHp).toBe(15);
+    candidates[0]!.marker.value = -5;
+    expect(mergeImported([defaultMarker(true)], candidates.slice(0, 1), "hp", "replace").currentHp).toBe(-5);
   });
   it("rejeita excesso e HP importado incompatível", () => {
     const candidates = Array.from({ length: 12 }, (_, i) => ({ sourceId: String(i), marker: defaultMarker() }));
     expect(() => mergeImported([defaultMarker(true)], candidates, "", "append")).toThrow("12");
-    candidates[0]!.marker.value = -2; expect(() => mergeImported([defaultMarker(true)], candidates.slice(0, 1), "0", "append")).toThrow("HP");
+    candidates[0]!.marker.value = -2.5; expect(() => mergeImported([defaultMarker(true)], candidates.slice(0, 1), "0", "append")).toThrow("HP");
   });
   it("preferências independem do usuário, sala e cena", () => {
-    savePreferences("r", "p", { position: "TOP", overrides: { "s/a": "BOTTOM" } });
-    expect(readPreferences("r", "other").position).toBe("BOTTOM");
+    savePreferences("r", "p", { position: "TOP", horizontal: "RIGHT", size: "LARGE", overrides: { "s/a": { position: "BOTTOM", size: "SMALL" } } });
+    expect(readPreferences("r", "other")).toEqual({ position: "BOTTOM", horizontal: "CENTER", size: "MEDIUM", overrides: {} });
     expect(tokenPosition(readPreferences("r", "p"), "s", "a")).toBe("BOTTOM");
-    expect(tokenPosition(readPreferences("r", "p"), "other", "a")).toBe("TOP");
-    expect(readPreferences("other", "p").position).toBe("BOTTOM");
+    expect(tokenDisplayLayout(readPreferences("r", "p"), "s", "a")).toEqual({ position: "BOTTOM", horizontal: "RIGHT", size: "SMALL" });
+    expect(tokenDisplayLayout(readPreferences("r", "p"), "other", "a")).toEqual({ position: "TOP", horizontal: "RIGHT", size: "LARGE" });
+    expect(readPreferences("other", "p")).toEqual({ position: "BOTTOM", horizontal: "CENTER", size: "MEDIUM", overrides: {} });
+  });
+  it("migra posição antiga e ignora campos locais inválidos", () => {
+    localStorage.setItem(`${PLUGIN_ID}/display/r/legacy`, JSON.stringify({ position: "TOP", overrides: { "s/a": "BOTTOM", "s/b": "SIDE", "s/c": { horizontal: "LEFT" } } }));
+    const migrated = readPreferences("r", "legacy");
+    expect(migrated).toEqual({ position: "TOP", horizontal: "CENTER", size: "MEDIUM", overrides: { "s/a": { position: "BOTTOM" }, "s/c": { horizontal: "LEFT" } } });
+    expect(tokenDisplayLayout(migrated, "s", "a")).toEqual({ position: "BOTTOM", horizontal: "CENTER", size: "MEDIUM" });
+    localStorage.setItem(`${PLUGIN_ID}/display/r/bad`, JSON.stringify({ position: "SIDE", horizontal: "TOP", size: "HUGE", overrides: { "s/a": { position: "SIDE", horizontal: 2, size: null } } }));
+    expect(readPreferences("r", "bad")).toEqual({ position: "BOTTOM", horizontal: "CENTER", size: "MEDIUM", overrides: {} });
   });
 });

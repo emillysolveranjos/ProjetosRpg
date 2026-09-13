@@ -4,7 +4,7 @@ import { createEmptyState, parseSceneState } from "../src/state/schema";
 
 describe("metadata da cena", () => {
   it("cria estado vazio versionado", () => {
-    expect(createEmptyState()).toMatchObject({ schemaVersion: 2, revision: 0, combatants: {}, conditionDefinitions: [], history: [], encounter: { order: [], round: 0 } });
+    expect(createEmptyState()).toMatchObject({ schemaVersion: 3, revision: 0, combatants: {}, conditionDefinitions: [], history: [], encounter: { order: [], round: 0 } });
   });
 
   it("aceita uma metadata válida", () => {
@@ -16,10 +16,11 @@ describe("metadata da cena", () => {
     expect(() => parseSceneState({ ...createEmptyState(), schemaVersion: 0 })).toThrow();
   });
 
-  it("rejeita HP atual maior que o máximo", () => {
+  it("aceita HP negativo e sobrevida acima do máximo", () => {
     const state = addCombatant(createEmptyState(), "token", 4, 8);
-    state.combatants.token!.currentHp = 9;
-    expect(() => parseSceneState(state)).toThrow("HP atual");
+    state.combatants.token!.currentHp = 9; expect(parseSceneState(state).combatants.token!.currentHp).toBe(9);
+    state.combatants.token!.currentHp = -3; expect(parseSceneState(state).combatants.token!.currentHp).toBe(-3);
+    state.combatants.token!.currentHp = 2_147_483_648; expect(() => parseSceneState(state)).toThrow();
   });
 
   it("rejeita chave de combatente diferente do ID do token", () => {

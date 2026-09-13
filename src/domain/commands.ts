@@ -21,7 +21,7 @@ export type Command =
   | { type: "markerValue"; tokenId: string; markerId: string; expression?: string; checked?: boolean }
   | { type: "template"; template: MarkerTemplate } | { type: "deleteTemplate"; templateId: string }
   | { type: "prune"; tokenIds: string[] } | { type: "undo" };
-export interface CommandEnvelope { id: string; sceneId: string; revision: number; coordinator: string; command: Command }
+export interface CommandEnvelope { protocol: 3; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
 export function adjustValue(current: number, expression: string): number {
   const match = /^\s*(=|\+|-|\*|\/)?\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(expression);
   if (!match) throw new Error("Use um número, =valor, +valor, -valor, *valor ou /valor.");
@@ -84,8 +84,8 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
       } else {
         const value = adjustValue(m.hp ? c!.currentHp : m.value, command.expression ?? "");
         if (m.hp) {
-          if (!Number.isInteger(value)) throw new Error("HP precisa ser inteiro.");
-          c!.currentHp = Math.max(0, Math.min(c!.maximumHp, value));
+          engine.assertHpValue(value);
+          c!.currentHp = value;
         } else m.value = value;
       }
       break;

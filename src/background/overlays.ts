@@ -2,11 +2,13 @@ import OBR, { buildLabel, isImage, type Item } from "@owlbear-rodeo/sdk";
 import { STATE_KEY, PLUGIN_ID } from "../config";
 import { parseSceneState } from "../state/schema";
 import { markerVisible, markerNumbers, markerText, visibleCombatant } from "../domain/access";
-import { readPreferences, tokenPosition } from "../state/preferences";
+import { readPreferences, tokenDisplayLayout } from "../state/preferences";
 import type { OwlbearGateway } from "../owlbear/gateway";
 import { markerLayout, type Bounds, type OverlayLabel } from "./marker-layout";
 
 const OWNER_KEY = PLUGIN_ID + "/overlay";
+const VERSION_KEY = PLUGIN_ID + "/overlay-version";
+const isOwn = (item: Item) => item.metadata[OWNER_KEY] === true || item.id.startsWith(PLUGIN_ID + "/");
 interface CachedToken { geometry: string; signature: string; bounds: Bounds; labels: OverlayLabel[] }
 function build(tokenId: string, label: OverlayLabel): Item {
   return {
@@ -15,7 +17,7 @@ function build(tokenId: string, label: OverlayLabel): Item {
       .width(label.width).height(label.height).padding(0).position({ x: label.x, y: label.y }).fillColor("#ffffff")
       .backgroundColor(label.color).backgroundOpacity(label.opacity).cornerRadius(label.radius).pointerHeight(0).pointerWidth(0).build(),
     attachedTo: tokenId, locked: true, disableHit: true, layer: "ATTACHMENT", zIndex: label.zIndex,
-    disableAttachmentBehavior: ["ROTATION", "SCALE"], metadata: { [OWNER_KEY]: true },
+    disableAttachmentBehavior: ["ROTATION", "SCALE"], metadata: { [OWNER_KEY]: true, [VERSION_KEY]: 3 },
   };
 }
 export function startOverlays(gateway: OwlbearGateway): () => void {
@@ -34,7 +36,7 @@ export function startOverlays(gateway: OwlbearGateway): () => void {
     if (!current()) return;
     if ((state?.sceneId ?? "") !== sceneId) { sceneId = state?.sceneId ?? ""; cache.clear(); refresh = true; }
     if (refresh) {
-      const own = await OBR.scene.local.getItems((item) => item.metadata[OWNER_KEY] === true);
+      const own = await OBR.scene.local.getItems(isOwn);
       if (!current()) return;
       applied.clear(); own.forEach((item) => applied.set(item.id, "")); refresh = false;
     }
@@ -47,14 +49,14 @@ export function startOverlays(gateway: OwlbearGateway): () => void {
       for (const token of tokens) {
         const c = state.combatants[token.id];
         if (!c || !visibleCombatant(c, viewer)) continue;
-        const top = tokenPosition(prefs, state.sceneId, token.id) === "TOP";
+        const layout = tokenDisplayLayout(prefs, state.sceneId, token.id);
         const geometry = JSON.stringify([token.position, token.rotation, token.scale, token.image, token.grid]);
-        const signature = JSON.stringify([top, c.markers.filter((m) => m.onMap && markerVisible(m, c, viewer)).map((m) => [m.id, m.name, m.kind, m.hp, m.color, markerText(m, c, viewer), m.kind === "bar" ? markerNumbers(m, c) : null])]);
+        const signature = JSON.stringify([layout, c.markers.filter((m) => m.onMap && markerVisible(m, c, viewer)).map((m) => [m.id, m.name, m.kind, m.hp, m.color, markerText(m, c, viewer), m.kind === "bar" ? markerNumbers(m, c) : null])]);
         let entry = cache.get(token.id);
         if (!entry || entry.geometry !== geometry || entry.signature !== signature) {
           const bounds = entry?.geometry === geometry ? entry.bounds : await OBR.scene.items.getItemBounds([token.id]);
           if (!current()) return;
-          entry = { geometry, signature, bounds, labels: markerLayout(c, viewer, bounds, top) };
+          entry = { geometry, signature, bounds, labels: markerLayout(c, viewer, bounds, layout) };
           cache.set(token.id, entry);
         }
         seen.add(token.id);
@@ -109,7 +111,7 @@ export function startOverlays(gateway: OwlbearGateway): () => void {
       if (!await OBR.scene.isReady()) return;
       const raw = (await OBR.scene.getMetadata())[STATE_KEY];
       if (parseSceneState(raw).sceneId !== sceneId) return;
-      const own = await OBR.scene.local.getItems((item) => item.metadata[OWNER_KEY] === true);
+      const own = await OBR.scene.local.getItems(isOwn);
       for (let i = 0; i < own.length; i += 100) await OBR.scene.local.deleteItems(own.slice(i, i + 100).map((item) => item.id));
     }).catch(() => { /* Scene may have closed during teardown. */ });
   };

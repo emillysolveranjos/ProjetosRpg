@@ -7,7 +7,7 @@ Extensão do [Owlbear Rodeo](https://www.owlbear.rodeo/) para mestres e jogadore
 1. No perfil do Owlbear, abra **Extensions → Add Extension**.
 2. Cole [o link de instalação](https://emillysolveranjos.github.io/ProjetosRpg/manifest.json).
 3. Na sala, habilite **Rulebear** em **Extensions** e abra o botão do urso.
-4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.0.1.
+4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.1.0.
 
 Sem servidor local, conta GitHub ou login adicional. Distribuição por link; não está na loja do Owlbear. Desative instalações locais antigas na sala para não executar duas versões sobre o mesmo encontro.
 
@@ -30,7 +30,7 @@ Clique em **Iniciativa** no cartão para digitar o valor. O mestre usa **⋯ do 
 
 Novos combatentes entram no fim. Remover o ativo pausa o encontro; o mestre escolhe em qual token retomar. **Undo**, exclusivo dos mestres, restaura a última operação e seus efeitos sobre HP, condições, ordem e rodada.
 
-Dano aceita números e dados, como `2d6+3`, categorias e reduções em sequência. Cura respeita o HP máximo. A biblioteca permite condições com stacks, duração e efeitos no início/fim do turno. Iniciativa não possui rolagem nesta versão.
+Dano aceita números e dados, como `2d6+3`, categorias e reduções em sequência. O dano pode levar o HP abaixo de zero. Cura soma a partir do valor negativo e para no HP máximo; se o token já tiver sobrevida, a cura preserva esse valor. A biblioteca permite condições com stacks, duração e efeitos no início/fim do turno. Iniciativa não possui rolagem nesta versão.
 
 ## Painel compacto
 
@@ -40,14 +40,15 @@ O botão **⋯ no cartão** reúne condições, defesas, acesso, marcadores, pos
 
 ## Marcadores e posição
 
-No mapa, HP aparece como uma barra arredondada junto à borda do token. Números e contadores ficam em círculos ou cápsulas voltados para a imagem; barras adicionais ficam do lado externo. Valores longos e múltiplos contadores se distribuem em linhas. O layout acompanha a preferência acima/abaixo e a visibilidade de cada participante.
+No mapa, HP aparece como uma barra arredondada junto à borda do token, com o valor centralizado dentro dela. Números e contadores ficam em círculos ou cápsulas voltados para a imagem; barras adicionais ficam do lado externo. Valores longos e múltiplos contadores se distribuem em linhas. O conjunto acompanha a posição vertical, o alinhamento horizontal, o tamanho e a visibilidade escolhidos por cada participante.
 
 Quatro tipos: **barra atual/máximo**, **número**, **contador** e **marcação**. A barra de HP usa os próprios valores do combate; não existe um segundo HP.
 
-Ajustes numéricos aceitam `=10`, `+2`, `-3`, `*2` e `/2`, sem executar código. Para atribuir um número negativo, use `=-3`. Recursos personalizados aceitam valores finitos; barras limitam apenas o preenchimento visual a 0–100%. HP continua inteiro entre zero e seu máximo.
+Ajustes numéricos aceitam `=10`, `+2`, `-3`, `*2` e `/2`, sem executar código. Para atribuir um número negativo, use `=-3`. HP negativo aparece com a barra vazia. Um ajuste acima do máximo cria sobrevida: `25/20` representa 5 pontos temporários, destacados em azul. Recursos personalizados aceitam valores finitos; barras limitam apenas o preenchimento visual a 0–100%.
 
-- Na engrenagem **Minha visualização**, escolha acima ou abaixo.
-- Em **⋯ no cartão**, crie uma exceção só para aquele token na própria tela.
+- Na engrenagem **Minha visualização**, escolha **Acima/Abaixo**, **Esquerda/Centro/Direita** e **Pequeno/Médio/Grande**. O padrão inicial é **Abaixo + Centro + Médio**.
+- Em **⋯ no cartão**, crie exceções independentes de posição, alinhamento e tamanho só para aquele token na própria tela. **Usar meu padrão** herda cada escolha global separadamente.
+- **Limpar minhas exceções** devolve todos os tokens ao padrão pessoal atual.
 - As preferências ficam no navegador, por usuário/sala; exceções também distinguem a cena. Não sincronizam entre dispositivos.
 - As barras funcionam com o painel fechado. Tokens invisíveis não mostram marcadores aos jogadores.
 - Modelos de marcadores ficam salvos na cena. Aplicar um modelo preserva o HP atual/máximo do combatente.
@@ -64,7 +65,7 @@ Os dados originais são preservados e não há sincronização contínua. Depois
 
 O background elege um mestre coordenador e processa comandos em sequência. Durante reconexões há uma breve espera. Se o estado mudou, a ação é rejeitada para evitar sobrescrever alterações. Se uma confirmação não chegar, confira os valores antes de tentar de novo: a Rulebear não repete a ação automaticamente.
 
-Cenas v1 são migradas por um mestre, preservando HP, defesas, condições, histórico e turno aberto. A migração inicia acesso restrito, não atribui iniciativas e reinicia o Undo antigo. Antes da conversão, o navegador do mestre guarda um backup v1. Exporte-o pela engrenagem em **Baixar backups anteriores à migração**; esse arquivo contém os dados originais para recuperação. Não limpe o armazenamento do navegador antes de exportar. Se não puder salvar o backup, a migração não grava a cena.
+Cenas v1 e v2 são migradas para v3 por um mestre, preservando HP, defesas, condições, histórico, turno e o Undo compatível da v2. A migração v1 inicia acesso restrito, não atribui iniciativas e reinicia o Undo antigo. Antes da conversão, o navegador do mestre guarda um backup. Exporte-o pela engrenagem em **Baixar backups anteriores à migração**; esse arquivo contém os dados originais para recuperação. Não limpe o armazenamento do navegador antes de exportar. Se não puder salvar o backup, a migração não grava a cena. Todos os participantes devem recarregar a Rulebear após a atualização.
 
 Dados inválidos ou versões futuras não são substituídos. Limites: 50 combatentes, 12 marcadores por token, 25 definições de condição, 25 modelos e 50 registros de histórico.
 

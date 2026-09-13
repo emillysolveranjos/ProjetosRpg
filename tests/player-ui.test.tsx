@@ -70,8 +70,22 @@ describe("painel de jogadores", () => {
     render(<App gateway={p} />); await screen.findByText("1 combatente");
     fireEvent.click(screen.getByRole("button", { name: "Preferências visuais" }));
     const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Posição padrão dos marcadores"), { target: { value: "TOP" } });
-    expect(useAppStore.getState().preferences.position).toBe("TOP");
+    fireEvent.change(within(dialog).getByLabelText("Posição vertical padrão"), { target: { value: "TOP" } });
+    fireEvent.change(within(dialog).getByLabelText("Alinhamento horizontal padrão"), { target: { value: "RIGHT" } });
+    fireEvent.change(within(dialog).getByLabelText("Tamanho padrão dos marcadores"), { target: { value: "LARGE" } });
+    expect(useAppStore.getState().preferences).toMatchObject({ position: "TOP", horizontal: "RIGHT", size: "LARGE" });
+    expect(n.writes).toBe(0);
+  });
+  it("salva exceções independentes por propriedade e token sem alterar a cena", async () => {
+    const { n, p } = setup(); render(<App gateway={p} />); await screen.findByText("1 combatente");
+    fireEvent.click(screen.getByRole("button", { name: "Detalhes de A" }));
+    fireEvent.change(screen.getByLabelText("Posição vertical neste token"), { target: { value: "TOP" } });
+    fireEvent.change(screen.getByLabelText("Alinhamento neste token"), { target: { value: "LEFT" } });
+    fireEvent.change(screen.getByLabelText("Tamanho neste token"), { target: { value: "SMALL" } });
+    const preferenceKey = `${useAppStore.getState().state.sceneId}/a`;
+    expect(useAppStore.getState().preferences.overrides[preferenceKey]).toEqual({ position: "TOP", horizontal: "LEFT", size: "SMALL" });
+    fireEvent.change(screen.getByLabelText("Alinhamento neste token"), { target: { value: "" } });
+    expect(useAppStore.getState().preferences.overrides[preferenceKey]).toEqual({ position: "TOP", size: "SMALL" });
     expect(n.writes).toBe(0);
   });
   it("expande apenas um cartão e mantém a edição recolhida inicialmente", async () => {

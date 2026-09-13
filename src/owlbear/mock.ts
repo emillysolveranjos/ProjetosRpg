@@ -2,6 +2,7 @@ import type { RulebearSceneState, TokenView, Participant } from "../domain/types
 import { createEmptyState } from "../state/schema";
 import { addCombatant } from "../domain/engine";
 import { executeCommand, type CommandEnvelope } from "../domain/commands";
+import { PROTOCOL_VERSION } from "./sync";
 import type { OwlbearGateway, Role, ThemeMode } from "./gateway";
 const tokens: TokenView[] = [{ id: "token-urso", name: "Urso-coruja" }, { id: "token-lina", name: "Lina, a Cinzenta" }, { id: "token-goblin", name: "Sentinela goblin" }];
 export class MockOwlbearGateway implements OwlbearGateway {
@@ -23,15 +24,15 @@ export class MockOwlbearGateway implements OwlbearGateway {
   onParticipantsChange() { return () => {}; }
   async sendMessage(data: unknown) {
     const message = data as { type: string; envelope?: CommandEnvelope };
-    if (message.type === "discover") this.messages.forEach((cb) => cb({ type: "presence", session: "mock", ready: true, sceneReady: true }, "mock-gm"));
+    if (message.type === "discover") this.messages.forEach((cb) => cb({ type: "presence", protocol: PROTOCOL_VERSION, session: "mock", ready: true, sceneReady: true }, "mock-gm"));
     if (message.type === "command" && message.envelope) {
       const env = message.envelope;
       try {
         if (env.revision !== this.state.revision) throw new Error("Estado mudou.");
         this.state = executeCommand(this.state, env.command, await this.getSelf());
         this.listeners.forEach((cb) => cb(this.state));
-        this.messages.forEach((cb) => cb({ type: "result", id: env.id, coordinator: "mock-gm/mock", ok: true }, "mock-gm"));
-      } catch (error) { this.messages.forEach((cb) => cb({ type: "result", id: env.id, coordinator: "mock-gm/mock", ok: false, message: String(error) }, "mock-gm")); }
+        this.messages.forEach((cb) => cb({ type: "result", protocol: PROTOCOL_VERSION, id: env.id, coordinator: "mock-gm/mock", ok: true }, "mock-gm"));
+      } catch (error) { this.messages.forEach((cb) => cb({ type: "result", protocol: PROTOCOL_VERSION, id: env.id, coordinator: "mock-gm/mock", ok: false, message: String(error) }, "mock-gm")); }
     }
   }
   onMessage(callback: (data: unknown, connectionId: string) => void) { this.messages.add(callback); return () => this.messages.delete(callback); }

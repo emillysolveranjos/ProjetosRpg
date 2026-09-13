@@ -17,6 +17,12 @@ import type {
 
 const clone = <T,>(value: T): T => structuredClone(value);
 const newId = (): string => crypto.randomUUID();
+export const HP_LIMIT = 2_147_483_647;
+export function assertHpValue(value: number, label = "HP atual"): void {
+  if (!Number.isSafeInteger(value) || value < -HP_LIMIT || value > HP_LIMIT) {
+    throw new Error(`${label} deve ser um inteiro entre -${HP_LIMIT} e ${HP_LIMIT}.`);
+  }
+}
 
 function normalizeCategories(categories: string[]): string[] {
   return [...new Set(categories.map((category) => category.trim().toLocaleUpperCase("pt-BR")).filter(Boolean))];
@@ -64,8 +70,8 @@ export function addCombatant(
   if (!tokenId) throw new Error("Token inválido.");
   if (current.combatants[tokenId]) throw new Error("Este token já está na Rulebear.");
   if (Object.keys(current.combatants).length >= MAX_COMBATANTS) throw new Error(`A cena aceita no máximo ${MAX_COMBATANTS} combatentes.`);
-  if (!Number.isInteger(maximumHp) || maximumHp < 1) throw new Error("O HP máximo deve ser um inteiro maior que zero.");
-  if (!Number.isInteger(currentHp) || currentHp < 0 || currentHp > maximumHp) throw new Error("O HP atual deve estar entre zero e o máximo.");
+  if (!Number.isSafeInteger(maximumHp) || maximumHp < 1 || maximumHp > HP_LIMIT) throw new Error(`O HP máximo deve ser um inteiro entre 1 e ${HP_LIMIT}.`);
+  assertHpValue(currentHp);
 
   const state = clone(current);
   state.combatants[tokenId] = { tokenId, currentHp, maximumHp, reductions: [], conditions: [], settings: defaultSettings(), markers: [defaultMarker(true)], initiative: null };
@@ -122,7 +128,7 @@ export function resolveDamage(
     reducedBy,
     finalAmount: remaining,
     hpBefore: combatant.currentHp,
-    hpAfter: Math.max(0, combatant.currentHp - remaining),
+    hpAfter: combatant.currentHp - remaining,
   };
 }
 
@@ -139,6 +145,7 @@ export function applyDamage(
   const state = clone(current);
   const combatant = getCombatant(state, tokenId);
   const result = resolveDamage(combatant, expression, categories, bypassReductions, multiplier, rollDie);
+  assertHpValue(result.hpAfter);
   combatant.currentHp = result.hpAfter;
   const next = commit(
     state,
@@ -158,7 +165,7 @@ export function applyHealing(
 ): { state: RulebearSceneState; recovered: number } {
   if (!Number.isInteger(amount) || amount <= 0) throw new Error("A cura deve ser um inteiro positivo.");
   const before = clone(getCombatant(current, tokenId));
-  const recovered = Math.min(amount, before.maximumHp - before.currentHp);
+  const recovered = before.currentHp >= before.maximumHp ? 0 : Math.min(amount, before.maximumHp - before.currentHp);
   if (recovered === 0) return { state: current, recovered: 0 };
   const state = clone(current);
   getCombatant(state, tokenId).currentHp += recovered;
@@ -297,13 +304,14 @@ export function processTurn(
       const multiplier = effect.multiplyByStacks ? applied.stacks : 1;
       if (effect.kind === "DAMAGE") {
         const result = resolveDamage(combatant, effect.expression, effect.categories, effect.bypassReductions, multiplier, rollDie);
+        assertHpValue(result.hpAfter);
         combatant.currentHp = result.hpAfter;
         messages.push(`${definition.name}: ${result.finalAmount} de dano`);
       } else {
         const rolled = evaluateExpression(effect.expression, rollDie);
         const requested = rolled.total * multiplier;
         if (requested <= 0) throw new Error(`O efeito de cura de “${definition.name}” precisa ser positivo.`);
-        const recovered = Math.min(requested, combatant.maximumHp - combatant.currentHp);
+        const recovered = combatant.currentHp >= combatant.maximumHp ? 0 : Math.min(requested, combatant.maximumHp - combatant.currentHp);
         combatant.currentHp += recovered;
         messages.push(`${definition.name}: ${recovered} de cura`);
       }

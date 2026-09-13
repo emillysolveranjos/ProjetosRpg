@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CombatantState, Marker, RulebearSceneState, TokenView, Viewer } from "../domain/types";
+import type { CombatantState, Marker, MarkerDisplayLayout, RulebearSceneState, TokenDisplayOverride, TokenView, Viewer } from "../domain/types";
 import { allowed, markerEditable, markerNumbers, markerText, markerVisible, permitted } from "../domain/access";
 import { useAppStore } from "../state/store";
 import { AccessEditor } from "./AccessEditor";
@@ -24,6 +24,13 @@ export function CompactCard({ combatant: c, token, state, viewer, readOnly, prev
   const markers = c.markers.filter((m) => markerVisible(m, c, viewer));
   const selectedMarker = markers.find((m) => m.id === editor);
   const preferenceKey = state.sceneId + "/" + c.tokenId;
+  const displayOverride = preferences.overrides[preferenceKey] ?? {};
+  const setDisplayOverride = <K extends keyof MarkerDisplayLayout>(field: K, value: "" | MarkerDisplayLayout[K]) => {
+    const overrides = { ...preferences.overrides }, next: TokenDisplayOverride = { ...displayOverride };
+    if (value) next[field] = value; else delete next[field];
+    if (Object.keys(next).length) overrides[preferenceKey] = next; else delete overrides[preferenceKey];
+    setPreferences({ ...preferences, overrides });
+  };
   const open = (id: string) => { setEditor(id); onExpand(); };
   const index = state.encounter.order.indexOf(c.tokenId);
   const move = (delta: number) => {
@@ -37,7 +44,10 @@ export function CompactCard({ combatant: c, token, state, viewer, readOnly, prev
     <div className="compact-markers">{markers.map((m) => {
       const editable = !previewing && (m.hp ? canHp : markerEditable(m, c, viewer));
       const { value, maximum } = markerNumbers(m, c);
-      const contents = <><span className="marker-caption"><span>{m.name}</span><strong>{markerText(m, c, viewer)}</strong></span>{m.kind === "bar" && <span className="hp-track"><span style={{ width: `${Math.max(0, Math.min(100, value / maximum * 100))}%`, background: m.color }} /></span>}</>;
+      const text = markerText(m, c, viewer);
+      const fill = Math.max(0, Math.min(100, value / maximum * 100));
+      const over = m.hp && value > maximum ? Math.min(100, (value - maximum) / maximum * 100) : 0;
+      const contents = m.kind === "bar" ? <><span className="bar-name">{m.name}</span><span className="hp-track panel-hp-track"><span className="hp-fill" style={{ width: `${fill}%`, background: m.color }} />{over > 0 && <span className="hp-over" style={{ width: `${over}%` }} />}<strong>{text}</strong></span></> : <span className="marker-caption"><span>{m.name}</span><strong>{text}</strong></span>;
       return editable ? <button className={`resource-value ${m.kind === "bar" ? "bar-value" : "badge-value"}`} key={m.id} aria-label={`${m.hp ? "Ações de HP" : "Ajustar " + m.name}: ${markerText(m, c, viewer)}`} onClick={() => open(m.id)}>{contents}</button> : <div className={`resource-value readonly ${m.kind === "bar" ? "bar-value" : "badge-value"}`} key={m.id}>{contents}</div>;
     })}</div>
     {showConditions && c.conditions.length > 0 && <div className="condition-list">{c.conditions.map((a) => <span className="condition-chip" key={a.id}>{state.conditionDefinitions.find((d) => d.id === a.definitionId)?.name ?? "Condição"}{a.stacks > 1 && ` ×${a.stacks}`}{a.remainingTicks !== undefined && ` · ${a.remainingTicks}t`}</span>)}</div>}
@@ -48,7 +58,7 @@ export function CompactCard({ combatant: c, token, state, viewer, readOnly, prev
       {selectedMarker && !selectedMarker.hp && markerEditable(selectedMarker, c, viewer) && !previewing && <ValueEditor key={selectedMarker.id} marker={selectedMarker} combatant={c} disabled={readOnly} />}
       {editor === "initiative" && permitted(c, viewer, "initiative") && !previewing && <InitiativeEditor key={String(c.initiative)} combatant={c} showValue={allowed(c.settings.visibility.initiative, c, viewer)} disabled={readOnly} />}
       {editor === "conditions" && showConditions && <div className="form-stack"><div className="condition-list">{c.conditions.map((a) => { const d = state.conditionDefinitions.find((item) => item.id === a.definitionId); return <span className="condition-chip" key={a.id}>{d?.name ?? "Condição"} · {a.stacks}{canConditions && <><button aria-label={`Diminuir ${d?.name}`} disabled={readOnly || a.stacks <= 1} onClick={() => void command({ type: "stacks", tokenId: c.tokenId, appliedId: a.id, delta: -1 })}>−</button><button aria-label={`Aumentar ${d?.name}`} disabled={readOnly || a.stacks >= (d?.maximumStacks ?? 1)} onClick={() => void command({ type: "stacks", tokenId: c.tokenId, appliedId: a.id, delta: 1 })}>+</button><button aria-label={`Remover ${d?.name}`} disabled={readOnly} onClick={() => void command({ type: "removeCondition", tokenId: c.tokenId, appliedId: a.id })}>×</button></>}</span>; })}</div>{canConditions && <form className="quick-form" onSubmit={(e) => { e.preventDefault(); void command({ type: "condition", tokenId: c.tokenId, definitionId: conditionId }).then((ok) => { if (ok) setConditionId(""); }); }}><label>Condição<select value={conditionId} onChange={(e) => setConditionId(e.target.value)}><option value="">Escolher…</option>{state.conditionDefinitions.filter((d) => !c.conditions.some((a) => a.definitionId === d.id)).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label><button className="button" disabled={readOnly || !conditionId}>Aplicar</button></form>}</div>}
-      <label>Posição só na minha tela<select disabled={previewing} value={preferences.overrides[preferenceKey] ?? ""} onChange={(e) => { const overrides = { ...preferences.overrides }; if (e.target.value) overrides[preferenceKey] = e.target.value as "TOP" | "BOTTOM"; else delete overrides[preferenceKey]; setPreferences({ ...preferences, overrides }); }}><option value="">Usar meu padrão</option><option value="TOP">Acima</option><option value="BOTTOM">Abaixo</option></select></label>
+      <div className="token-display-options" aria-label="Marcadores só na minha tela"><label>Posição vertical neste token<select disabled={previewing} value={displayOverride.position ?? ""} onChange={(e) => setDisplayOverride("position", e.target.value as "" | MarkerDisplayLayout["position"])}><option value="">Usar meu padrão</option><option value="TOP">Acima</option><option value="BOTTOM">Abaixo</option></select></label><label>Alinhamento neste token<select disabled={previewing} value={displayOverride.horizontal ?? ""} onChange={(e) => setDisplayOverride("horizontal", e.target.value as "" | MarkerDisplayLayout["horizontal"])}><option value="">Usar meu padrão</option><option value="LEFT">Esquerda</option><option value="CENTER">Centro</option><option value="RIGHT">Direita</option></select></label><label>Tamanho neste token<select disabled={previewing} value={displayOverride.size ?? ""} onChange={(e) => setDisplayOverride("size", e.target.value as "" | MarkerDisplayLayout["size"])}><option value="">Usar meu padrão</option><option value="SMALL">Pequeno</option><option value="MEDIUM">Médio</option><option value="LARGE">Grande</option></select></label></div>
       {gm && <div className="button-row"><button className="button" disabled={readOnly || index === 0} onClick={() => move(-1)}>↑ Ordem</button><button className="button" disabled={readOnly || index === state.encounter.order.length - 1} onClick={() => move(1)}>↓ Ordem</button>{!state.activeTokenId && <button className="button" disabled={readOnly} onClick={() => void command({ type: "start", tokenId: c.tokenId })}>Iniciar turno aqui</button>}<button className="button" onClick={() => setModal("access")}>Acesso</button><button className="button" onClick={() => setModal("markers")}>Marcadores</button><button className="text-button" disabled={readOnly} onClick={() => { if (confirm("Remover este combatente da Rulebear?")) void command({ type: "remove", tokenId: c.tokenId }); }}>Remover</button></div>}
     </section>}
     {modal === "access" && gm && expanded && <AccessEditor combatant={c} onClose={() => setModal(null)} />}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CommandClient, CommandProcessor, elect, startCoordinator } from "../src/owlbear/sync";
+import { CommandClient, CommandProcessor, elect, PROTOCOL_VERSION, startCoordinator } from "../src/owlbear/sync";
 import { addCombatant } from "../src/domain/engine";
 import { createEmptyState, parseSceneState } from "../src/state/schema";
 import type { CommandEnvelope } from "../src/domain/commands";
@@ -10,7 +10,7 @@ function setup() {
   n.value = addCombatant(createEmptyState(), "a", 10, 20);
   const s = parseSceneState(n.value), c = s.combatants.a!;
   c.settings.owners = ["p"]; c.settings.visibility.identity.mode = "ALL"; c.settings.permissions.heal = true; n.value = s;
-  const envelope = (id: string): CommandEnvelope => ({ id, sceneId: s.sceneId, revision: s.revision, coordinator: "gm/session", command: { type: "heal", tokenId: "a", amount: 2 } });
+  const envelope = (id: string): CommandEnvelope => ({ protocol: PROTOCOL_VERSION, id, sceneId: s.sceneId, revision: s.revision, coordinator: "gm/session", command: { type: "heal", tokenId: "a", amount: 2 } });
   return { n, gm, p, s, envelope };
 }
 describe("coordenação multiplayer", () => {
@@ -46,10 +46,11 @@ describe("coordenação multiplayer", () => {
   });
   it("eleição desconsidera jogadores, ausentes e presenças vencidas", () => {
     const { gm, p } = setup();
-    const peers = [{ connectionId: "p", session: "x", seen: 9000, ready: true }, { connectionId: "gm", session: "y", seen: 9000, ready: true }];
+    const peers = [{ connectionId: "p", session: "x", seen: 9000, ready: true, protocol: PROTOCOL_VERSION }, { connectionId: "gm", session: "y", seen: 9000, ready: true, protocol: PROTOCOL_VERSION }];
     expect(elect(peers, [gm.self, p.self], 10000)?.connectionId).toBe("gm");
     expect(elect(peers, [gm.self], 20000)).toBeUndefined();
     expect(elect(peers, [p.self], 10000)).toBeUndefined();
+    expect(elect([{ ...peers[1]!, protocol: 2 }], [gm.self], 10000)).toBeUndefined();
   });
   it("background processa ação com painel do mestre fechado e troca de coordenador", async () => {
     vi.useFakeTimers();
@@ -76,7 +77,21 @@ describe("coordenação multiplayer", () => {
     const stop = startCoordinator(gm); await vi.advanceTimersByTimeAsync(6500);
     expect(n.value).toEqual(legacy); expect(n.writes).toBe(0);
     n.failBackup = false; await vi.advanceTimersByTimeAsync(2000);
-    expect(n.backups).toEqual([legacy]); expect(parseSceneState(n.value).schemaVersion).toBe(2);
+    expect(n.backups).toEqual([legacy]); expect(parseSceneState(n.value).schemaVersion).toBe(3);
+    stop();
+  });
+  it("rejeita protocolo antigo com orientação para recarregar", async () => {
+    const { gm, p, envelope } = setup(), processor = new CommandProcessor(gm, () => true);
+    await expect(processor.process({ ...envelope("old"), protocol: 2 } as unknown as CommandEnvelope, p.self)).rejects.toThrow("Recarregue");
+  });
+  it("salva backup antes de migrar uma cena v2 para v3", async () => {
+    vi.useFakeTimers();
+    const n = new Network(), gm = n.join("gm", "GM");
+    const v2 = { ...createEmptyState(), schemaVersion: 2 };
+    n.value = v2;
+    const stop = startCoordinator(gm); await vi.advanceTimersByTimeAsync(6500);
+    expect(n.backups).toEqual([v2]);
+    expect(parseSceneState(n.value).schemaVersion).toBe(3);
     stop();
   });
   it("não repete automaticamente uma ação sem confirmação", async () => {
@@ -84,7 +99,7 @@ describe("coordenação multiplayer", () => {
     const { n, gm, p } = setup(); let count = 0;
     gm.onMessage((data) => { if ((data as { type: string }).type === "command") count++; });
     const client = new CommandClient(p, () => {});
-    await gm.sendMessage({ type: "presence", session: "session", ready: true, sceneReady: true });
+    await gm.sendMessage({ type: "presence", protocol: PROTOCOL_VERSION, session: "session", ready: true, sceneReady: true });
     const request = client.dispatch(parseSceneState(n.value), { type: "heal", tokenId: "a", amount: 1 });
     const result = expect(request).rejects.toThrow("não será repetida");
     await vi.advanceTimersByTimeAsync(10000); await result; expect(count).toBe(1); client.dispose();

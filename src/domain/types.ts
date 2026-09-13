@@ -80,7 +80,7 @@ export interface UndoRecord {
 }
 
 export interface RulebearSceneState {
-  schemaVersion: 2;
+  schemaVersion: 3;
   sceneId: string;
   encounter: Encounter;
   templates: MarkerTemplate[];
@@ -152,4 +152,14 @@ export interface EncounterSnapshot {
 export interface Participant { id: string; connectionId: string; name: string; role: "GM" | "PLAYER" }
 export interface Viewer { id: string; role: "GM" | "PLAYER" }
 export type PositionPreference = "TOP" | "BOTTOM";
-export interface DisplayPreferences { position: PositionPreference; overrides: Record<string, PositionPreference> }
+export type HorizontalPreference = "LEFT" | "CENTER" | "RIGHT";
+export type MarkerSizePreference = "SMALL" | "MEDIUM" | "LARGE";
+export interface MarkerDisplayLayout {
+  position: PositionPreference;
+  horizontal: HorizontalPreference;
+  size: MarkerSizePreference;
+}
+export type TokenDisplayOverride = Partial<MarkerDisplayLayout>;
+export interface DisplayPreferences extends MarkerDisplayLayout {
+  overrides: Record<string, TokenDisplayOverride>;
+}
