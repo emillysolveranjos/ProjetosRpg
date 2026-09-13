@@ -4,13 +4,15 @@
 
 React/TypeScript no painel de ação; background persistente enquanto a extensão está ativa na sala. Hospedagem estática em GitHub Pages. SDK Owlbear 3.1.0. Nenhum serviço externo de dados ou autenticação adicional.
 
-A fonte persistente continua em `io.github.samuelsanjos.rulebear/state`, com `schemaVersion: 2`. O nome do namespace legado é intencional para preservar cenas existentes. Estado contém combatentes, ordem/rodada, regras de condições, responsáveis, audiências, permissões, marcadores, modelos, histórico, Undo e IDs dos últimos 100 comandos confirmados.
+A fonte persistente continua em `io.github.samuelsanjos.rulebear/state`, com `schemaVersion: 4`. O nome do namespace legado é intencional para preservar cenas existentes. Estado contém combatentes, ordem/rodada, regras de condições, responsáveis, audiências, permissões individuais por ID de jogador, marcadores, modelos, histórico, Undo e IDs dos últimos 100 comandos confirmados.
 
 HP permanece em currentHp/maximumHp. Um marcador com hp=true referencia esses campos, ignorando seus campos numéricos locais. Zod valida limites, unicidade, ordem completa e uma única barra HP. O motor original mantém regras de dano, cura e condições.
 
 ## Acesso e apresentação
 
-Audiências: GM, todos, responsáveis e IDs selecionados. Nome/participação é requisito para apresentar o token ao jogador. Permissões de ação também exigem responsabilidade; máximos e configurações permanecem exclusivos de GM. Tokens invisíveis são retirados da visão de jogadores.
+Audiências: GM, todos, responsáveis e IDs selecionados. Nome/participação é requisito para apresentar o token ao jogador. Cada ação guarda uma lista de IDs autorizados. Dano, cura, ajustes de HP e condições não exigem responsabilidade; iniciativa e fim do próprio turno exigem. Configurações de marcadores permanecem exclusivas de GM. Tokens invisíveis são retirados da visão de jogadores.
+
+HP atual e máximo são ajustados por comandos separados. Ambos aceitam expressões aritméticas restritas; o máximo deve resultar em inteiro positivo. Alterar o máximo não recorta o HP atual. Permissão de ação e visibilidade são avaliadas separadamente, e respostas, histórico e overlays continuam filtrados.
 
 Filtros são compartilhados entre painel e overlays. Histórico de jogador nunca reutiliza resumos livres antigos, pois podem conter nomes e valores ocultos; apresenta eventos genéricos somente quando o token e seu histórico estão liberados. O badge não revela contagens.
 
@@ -43,9 +45,9 @@ O importador interpreta os quatro tipos do namespace `com.owl-trackers/trackers`
 
 ## Migração e recuperação
 
-Somente o coordenador grava a migração v1. Primeiro valida e cria um backup JSON no localStorage do mestre, separado por sala e mantendo os backups de cenas anteriores. Se o backup falhar, não grava v2. A exportação no painel permite conservar os dados originais fora do navegador.
+Somente o coordenador grava migrações v1, v2 e v3. Primeiro valida e cria um backup JSON no localStorage do mestre, separado por sala e mantendo os backups de cenas anteriores. Se o backup falhar, não grava v4. A exportação no painel permite conservar os dados originais fora do navegador.
 
-Migração preserva dados de combate e histórico, cria acesso privado, ordem pela sequência existente, iniciativas nulas e rodada 1 se já havia turno ativo. Undo antigo é reiniciado. Não há downgrade automático para v1; executar código antigo sobre cena v2 resulta em validação inválida, não conversão destrutiva.
+Migração v1 cria acesso privado, ordem pela sequência existente, iniciativas nulas e rodada 1 se já havia turno ativo. Em v2/v3, permissões booleanas habilitadas viram listas com os responsáveis atuais; edição antiga da barra HP vira ajuste do atual, e ajuste do máximo começa bloqueado. Combatentes presentes no Undo recebem a mesma conversão. Não há downgrade automático; clientes antigos são rejeitados pelo protocolo 4 e recebem orientação para recarregar.
 
 ## Referências
 

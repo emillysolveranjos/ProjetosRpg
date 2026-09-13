@@ -42,7 +42,8 @@ export function MarkerEditor({ combatant, onClose }: { combatant: CombatantState
       <AudienceEditor label="Quem vê este marcador" value={m.audience} players={participants} onChange={(audience) => update(m.id, { audience })} />
       <label>Exibição para jogadores<select value={m.display} onChange={(e) => update(m.id, { display: e.target.value as Marker["display"] })}><option value="FULL">Valores completos</option>{m.kind === "bar" && <option value="PERCENT">Somente porcentagem</option>}<option value="HIDDEN">Oculto</option></select></label>
       <label className="check"><input type="checkbox" checked={m.onMap} onChange={(e) => update(m.id, { onMap: e.target.checked })} />Mostrar no mapa</label>
-      <label className="check"><input type="checkbox" checked={m.editable} onChange={(e) => update(m.id, { editable: e.target.checked })} />Responsáveis podem editar o valor completo</label>
+      {!m.hp && <label className="check"><input type="checkbox" checked={m.editable} onChange={(e) => update(m.id, { editable: e.target.checked })} />Responsáveis podem editar o valor completo</label>}
+      {m.hp && <p className="muted">Permissões para ajustar HP atual e máximo ficam em “Acesso”.</p>}
       <div className="button-row"><button className="button" disabled={index === 0} onClick={() => move(index, -1)}>↑</button><button className="button" disabled={index === markers.length - 1} onClick={() => move(index, 1)}>↓</button>{!m.hp && <button className="button" onClick={() => setMarkers(markers.filter((item) => item.id !== m.id))}>Remover</button>}</div>
     </fieldset>)}
     <button className="button" disabled={markers.length >= 12} onClick={() => setMarkers([...markers, defaultMarker()])}>+ Marcador</button>

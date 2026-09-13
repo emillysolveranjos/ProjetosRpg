@@ -4,7 +4,7 @@ export function defaultSettings(): CombatantSettings {
   return {
     owners: [],
     visibility: { identity: privateAudience(), initiative: privateAudience(), defenses: privateAudience(), conditions: privateAudience(), history: privateAudience() },
-    permissions: { initiative: false, damage: false, heal: false, conditions: false, endTurn: false },
+    permissions: { initiative: [], damage: [], heal: [], adjustCurrentHp: [], adjustMaximumHp: [], conditions: [], endTurn: [] },
   };
 }
 export function defaultMarker(hp = false): Marker {

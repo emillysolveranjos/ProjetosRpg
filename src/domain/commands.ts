@@ -1,5 +1,5 @@
 import * as engine from "./engine";
-import { markerEditable, permitted, allowed } from "./access";
+import { markerEditable, permitted } from "./access";
 import { parseSceneState } from "../state/schema";
 import type { CombatantSettings, ConditionDefinition, DamageReduction, Marker, MarkerTemplate, Participant, RulebearSceneState, EncounterSnapshot } from "./types";
 export type Command =
@@ -7,10 +7,12 @@ export type Command =
   | { type: "remove"; tokenId: string }
   | { type: "damage"; tokenId: string; expression: string; categories: string[]; bypass: boolean }
   | { type: "heal"; tokenId: string; amount: number }
+  | { type: "hpAdjust"; tokenId: string; target: "CURRENT" | "MAXIMUM"; expression: string }
   | { type: "reductions"; tokenId: string; reductions: DamageReduction[] }
   | { type: "condition"; tokenId: string; definitionId: string }
   | { type: "stacks"; tokenId: string; appliedId: string; delta: number }
   | { type: "removeCondition"; tokenId: string; appliedId: string }
+  | { type: "conditionByDefinition"; tokenId: string; definitionId: string; operation: "INCREASE" | "DECREASE" | "REMOVE" }
   | { type: "saveDefinition"; definition: ConditionDefinition }
   | { type: "deleteDefinition"; definitionId: string }
   | { type: "initiative"; tokenId: string; value: number | null }
@@ -21,7 +23,7 @@ export type Command =
   | { type: "markerValue"; tokenId: string; markerId: string; expression?: string; checked?: boolean }
   | { type: "template"; template: MarkerTemplate } | { type: "deleteTemplate"; templateId: string }
   | { type: "prune"; tokenIds: string[] } | { type: "undo" };
-export interface CommandEnvelope { protocol: 3; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
+export interface CommandEnvelope { protocol: 4; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
 export function adjustValue(current: number, expression: string): number {
   const match = /^\s*(=|\+|-|\*|\/)?\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(expression);
   if (!match) throw new Error("Use um número, =valor, +valor, -valor, *valor ou /valor.");
@@ -39,16 +41,15 @@ export function authorize(state: RulebearSceneState, command: Command, actor: Pa
   const tokenId = "tokenId" in command ? command.tokenId : command.type === "advance" ? state.activeTokenId : undefined;
   const c = tokenId ? state.combatants[tokenId] : undefined;
   if (!c) throw new Error("Ação exclusiva do mestre.");
-  const map = { initiative: "initiative", damage: "damage", heal: "heal", condition: "conditions", stacks: "conditions", removeCondition: "conditions", advance: "endTurn" } as const;
+  const map = { initiative: "initiative", damage: "damage", heal: "heal", condition: "conditions", conditionByDefinition: "conditions", stacks: "conditions", removeCondition: "conditions", advance: "endTurn" } as const;
   if (command.type === "markerValue") {
     const m = c.markers.find((m) => m.id === command.markerId);
-    if (m && markerEditable(m, c, actor)) return;
+    if (m && !m.hp && markerEditable(m, c, actor)) return;
+  } else if (command.type === "hpAdjust") {
+    if (permitted(c, actor, command.target === "CURRENT" ? "adjustCurrentHp" : "adjustMaximumHp")) return;
   } else if (command.type in map) {
     const permission = map[command.type as keyof typeof map];
-    if (permitted(c, actor, permission)) {
-      if (permission === "conditions" && !allowed(c.settings.visibility.conditions, c, actor)) throw new Error("Condições não liberadas.");
-      return;
-    }
+    if (permitted(c, actor, permission)) return;
   }
   throw new Error("Você não tem permissão para esta ação.");
 }
@@ -62,15 +63,29 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
     case "remove": next = engine.removeCombatant(next, command.tokenId); break;
     case "damage": next = engine.applyDamage(next, command.tokenId, command.expression, command.categories, actor.role === "GM" && command.bypass).state; break;
     case "heal": next = engine.applyHealing(next, command.tokenId, command.amount).state; break;
+    case "hpAdjust": {
+      const value = adjustValue(command.target === "CURRENT" ? c!.currentHp : c!.maximumHp, command.expression);
+      if (command.target === "CURRENT") { engine.assertHpValue(value); c!.currentHp = value; }
+      else { engine.assertMaximumHp(value); c!.maximumHp = value; }
+      break;
+    }
     case "reductions": next = engine.setReductions(next, command.tokenId, command.reductions); break;
     case "condition": next = engine.applyCondition(next, command.tokenId, command.definitionId); break;
     case "stacks": next = engine.changeConditionStacks(next, command.tokenId, command.appliedId, command.delta); break;
     case "removeCondition": next = engine.removeCondition(next, command.tokenId, command.appliedId); break;
+    case "conditionByDefinition": {
+      const applied = c!.conditions.find((item) => item.definitionId === command.definitionId);
+      if (!applied) throw new Error("Não foi possível alterar a condição.");
+      next = command.operation === "REMOVE" ? engine.removeCondition(next, command.tokenId, applied.id) : engine.changeConditionStacks(next, command.tokenId, applied.id, command.operation === "INCREASE" ? 1 : -1);
+      break;
+    }
     case "saveDefinition": next = engine.saveConditionDefinition(next, command.definition); break;
     case "deleteDefinition": next = engine.deleteConditionDefinition(next, command.definitionId); break;
     case "initiative": c!.initiative = command.value; break;
     case "settings": c!.settings = structuredClone(command.settings); break;
     case "markers":
+      if (command.maximumHp !== undefined) engine.assertMaximumHp(command.maximumHp);
+      if (command.currentHp !== undefined) engine.assertHpValue(command.currentHp);
       c!.markers = structuredClone(command.markers);
       if (command.maximumHp !== undefined) c!.maximumHp = command.maximumHp;
       if (command.currentHp !== undefined) c!.currentHp = command.currentHp;
@@ -143,7 +158,7 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
     default: throw new Error("Comando desconhecido.");
   }
   const added = next.history.slice(current.history.length < 50 ? current.history.length : 49);
-  const summary = command.type === "advance" ? "Turno avançado; efeitos de fim e início aplicados." : added[0]?.id !== current.history.at(-1)?.id && next.revision > current.revision ? added.map((e) => e.summary).join(" · ").slice(0, 240) : command.type === "settings" ? "Permissões atualizadas." : command.type === "markerValue" || command.type === "markers" ? "Marcadores atualizados." : "Encontro atualizado.";
+  const summary = command.type === "advance" ? "Turno avançado; efeitos de fim e início aplicados." : added[0]?.id !== current.history.at(-1)?.id && next.revision > current.revision ? added.map((e) => e.summary).join(" · ").slice(0, 240) : command.type === "settings" ? "Permissões atualizadas." : command.type === "markerValue" || command.type === "markers" ? "Marcadores atualizados." : command.type === "hpAdjust" ? "HP ajustado." : "Encontro atualizado.";
   const historyId = crypto.randomUUID();
   next.history = [...current.history, { id: historyId, occurredAt: new Date().toISOString(), kind: "ENCOUNTER_CHANGED" as const, summary, tokenId: "tokenId" in command ? command.tokenId : current.activeTokenId }].slice(-50);
   next.undo = { historyId, snapshot: snapshot(current) };

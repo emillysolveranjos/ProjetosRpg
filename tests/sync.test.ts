@@ -9,7 +9,7 @@ function setup() {
   const n = new Network(), gm = n.join("gm", "GM"), p = n.join("p", "PLAYER");
   n.value = addCombatant(createEmptyState(), "a", 10, 20);
   const s = parseSceneState(n.value), c = s.combatants.a!;
-  c.settings.owners = ["p"]; c.settings.visibility.identity.mode = "ALL"; c.settings.permissions.heal = true; n.value = s;
+  c.settings.owners = ["p"]; c.settings.visibility.identity.mode = "ALL"; c.settings.permissions.heal = ["p"]; n.value = s;
   const envelope = (id: string): CommandEnvelope => ({ protocol: PROTOCOL_VERSION, id, sceneId: s.sceneId, revision: s.revision, coordinator: "gm/session", command: { type: "heal", tokenId: "a", amount: 2 } });
   return { n, gm, p, s, envelope };
 }
@@ -77,21 +77,22 @@ describe("coordenação multiplayer", () => {
     const stop = startCoordinator(gm); await vi.advanceTimersByTimeAsync(6500);
     expect(n.value).toEqual(legacy); expect(n.writes).toBe(0);
     n.failBackup = false; await vi.advanceTimersByTimeAsync(2000);
-    expect(n.backups).toEqual([legacy]); expect(parseSceneState(n.value).schemaVersion).toBe(3);
+    expect(n.backups).toEqual([legacy]); expect(parseSceneState(n.value).schemaVersion).toBe(4);
     stop();
   });
   it("rejeita protocolo antigo com orientação para recarregar", async () => {
     const { gm, p, envelope } = setup(), processor = new CommandProcessor(gm, () => true);
     await expect(processor.process({ ...envelope("old"), protocol: 2 } as unknown as CommandEnvelope, p.self)).rejects.toThrow("Recarregue");
   });
-  it("salva backup antes de migrar uma cena v2 para v3", async () => {
+  it("salva backup antes de migrar cenas antigas para v4", async () => {
     vi.useFakeTimers();
     const n = new Network(), gm = n.join("gm", "GM");
-    const v2 = { ...createEmptyState(), schemaVersion: 2 };
+    const current = createEmptyState();
+    const v2 = { ...current, schemaVersion: 2 };
     n.value = v2;
     const stop = startCoordinator(gm); await vi.advanceTimersByTimeAsync(6500);
     expect(n.backups).toEqual([v2]);
-    expect(parseSceneState(n.value).schemaVersion).toBe(3);
+    expect(parseSceneState(n.value).schemaVersion).toBe(4);
     stop();
   });
   it("não repete automaticamente uma ação sem confirmação", async () => {

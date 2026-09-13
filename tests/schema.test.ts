@@ -4,7 +4,7 @@ import { createEmptyState, parseSceneState } from "../src/state/schema";
 
 describe("metadata da cena", () => {
   it("cria estado vazio versionado", () => {
-    expect(createEmptyState()).toMatchObject({ schemaVersion: 3, revision: 0, combatants: {}, conditionDefinitions: [], history: [], encounter: { order: [], round: 0 } });
+    expect(createEmptyState()).toMatchObject({ schemaVersion: 4, revision: 0, combatants: {}, conditionDefinitions: [], history: [], encounter: { order: [], round: 0 } });
   });
 
   it("aceita uma metadata válida", () => {

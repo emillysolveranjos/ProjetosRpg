@@ -35,7 +35,7 @@ export function App({ gateway }: { gateway?: OwlbearGateway }) {
   if (status === "NO_SCENE") return <Centered title="Abra uma cena para começar" detail="Os encontros ficam salvos na cena do Owlbear Rodeo." />;
   if (status === "INVALID") return <Centered title="A cena precisa de atenção" detail={error} />;
   const players = [...new Map(store.participants.filter((p) => p.role === "PLAYER").map((p) => [p.id, p])).values()];
-  const knownIds = [...new Set(Object.values(state.combatants).flatMap((c) => [...c.settings.owners, ...Object.values(c.settings.visibility).flatMap((v) => v.playerIds), ...c.markers.flatMap((m) => m.audience.playerIds)]))];
+  const knownIds = [...new Set(Object.values(state.combatants).flatMap((c) => [...c.settings.owners, ...Object.values(c.settings.permissions).flat(), ...Object.values(c.settings.visibility).flatMap((v) => v.playerIds), ...c.markers.flatMap((m) => m.audience.playerIds)]))];
   for (const id of knownIds) if (!players.some((p) => p.id === id)) players.push({ id, connectionId: "", role: "PLAYER", name: "Desconectado (" + id.slice(0, 6) + ")" });
   return <main className="app-shell compact-app">
     <header className="topbar"><div className="brand-mark">R</div><div className="brand-copy"><span>RULEBEAR</span><strong>{gm ? "Mesa do GM" : "Minha mesa"}</strong></div>{gm && <button className="icon-button" title="Desfazer última ação" aria-label="Desfazer última ação" disabled={readOnly || !state.undo} onClick={() => void send({ type: "undo" })}>↶</button>}<button className="icon-button" title="Preferências visuais" aria-label="Preferências visuais" onClick={() => setDialog("preferences")}>⚙</button></header>

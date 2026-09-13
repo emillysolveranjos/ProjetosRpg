@@ -80,7 +80,7 @@ export interface UndoRecord {
 }
 
 export interface RulebearSceneState {
-  schemaVersion: 3;
+  schemaVersion: 4;
   sceneId: string;
   encounter: Encounter;
   templates: MarkerTemplate[];
@@ -124,8 +124,10 @@ export interface Audience {
 export interface CombatantSettings {
   owners: string[];
   visibility: { identity: Audience; initiative: Audience; defenses: Audience; conditions: Audience; history: Audience };
-  permissions: { initiative: boolean; damage: boolean; heal: boolean; conditions: boolean; endTurn: boolean };
+  permissions: CombatantPermissions;
 }
+export type PermissionKey = "initiative" | "damage" | "heal" | "adjustCurrentHp" | "adjustMaximumHp" | "conditions" | "endTurn";
+export type CombatantPermissions = Record<PermissionKey, string[]>;
 export interface Marker {
   id: string;
   name: string;

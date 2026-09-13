@@ -11,7 +11,7 @@ function setup() {
   const s = addCombatant(addCombatant(createEmptyState(), "a", 13, 29), "b", 3, 5);
   const a = s.combatants.a!; a.settings.owners = ["p"]; a.settings.visibility.identity.mode = "OWNERS";
   a.markers[0]!.audience.mode = "OWNERS"; a.markers[0]!.display = "PERCENT";
-  a.settings.permissions.heal = true; a.settings.permissions.initiative = true;
+  a.settings.permissions.heal = ["p"]; a.settings.permissions.initiative = ["p"];
   n.value = s; return { n, gm, p, other };
 }
 describe("painel de jogadores", () => {
@@ -97,5 +97,40 @@ describe("painel de jogadores", () => {
     fireEvent.click(screen.getByRole("button", { name: "Detalhes de B" }));
     expect(screen.queryByLabelText("Dano (ex.: 2d6+3)")).not.toBeInTheDocument();
     expect(screen.getAllByRole("region", { name: "Detalhes do combatente" })).toHaveLength(1);
+  });
+  it("mostra ajustes separados de HP atual e máximo conforme a autorização", async () => {
+    const { n, p } = setup();
+    const s = parseSceneState(n.value); s.combatants.a!.settings.permissions.heal = [];
+    s.combatants.a!.settings.permissions.adjustCurrentHp = ["p"];
+    s.combatants.a!.settings.permissions.adjustMaximumHp = ["p"];
+    n.value = s; render(<App gateway={p} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ações de HP: 45%" }));
+    expect(screen.getByLabelText("Ajustar HP atual")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ajustar HP máximo")).toBeInTheDocument();
+    expect(screen.queryByText("13/29")).not.toBeInTheDocument();
+  });
+  it("permite escolher operação de condição sem revelar condições aplicadas", async () => {
+    const { n, p } = setup();
+    const s = parseSceneState(n.value), a = s.combatants.a!;
+    a.settings.permissions.conditions = ["p"]; a.settings.visibility.conditions.mode = "GM";
+    s.conditionDefinitions = [{ id: "secret", name: "Veneno", maximumStacks: 3, effects: [] }];
+    n.value = s; render(<App gateway={p} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Detalhes de A" }));
+    fireEvent.click(screen.getByRole("button", { name: "Condições" }));
+    expect(screen.getByLabelText("Operação")).toBeInTheDocument();
+    expect(screen.getByText(/condições aplicadas estão ocultas/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Veneno ·/)).not.toBeInTheDocument();
+  });
+  it("mostra cartões de permissões individuais no acesso do mestre", async () => {
+    const { gm } = setup(); render(<App gateway={gm} />);
+    await screen.findByText("2 combatentes");
+    fireEvent.click(screen.getByRole("button", { name: "Detalhes de A" }));
+    fireEvent.click(screen.getByRole("button", { name: "Acesso" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Permissões por jogador")).toBeInTheDocument();
+    expect(within(dialog).getAllByLabelText("Aplicar dano")).toHaveLength(2);
+    expect(within(dialog).getAllByLabelText("Ajustar HP atual")).toHaveLength(2);
+    expect(within(dialog).getAllByLabelText("Ajustar HP máximo")).toHaveLength(2);
+    expect(within(dialog).queryByText("Editar HP")).not.toBeInTheDocument();
   });
 });

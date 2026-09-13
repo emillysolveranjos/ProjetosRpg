@@ -7,14 +7,14 @@ Extensão do [Owlbear Rodeo](https://www.owlbear.rodeo/) para mestres e jogadore
 1. No perfil do Owlbear, abra **Extensions → Add Extension**.
 2. Cole [o link de instalação](https://emillysolveranjos.github.io/ProjetosRpg/manifest.json).
 3. Na sala, habilite **Rulebear** em **Extensions** e abra o botão do urso.
-4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.1.1.
+4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.2.0.
 
 Sem servidor local, conta GitHub ou login adicional. Distribuição por link; não está na loja do Owlbear. Desative instalações locais antigas na sala para não executar duas versões sobre o mesmo encontro.
 
 ## Preparar a mesa
 
 - Como mestre, selecione um token da camada **Personagem** e clique em **+ Token selecionado**, ou use o menu de contexto **Adicionar à Rulebear**.
-- Abra **⋯ no cartão → Acesso**. Atribua os responsáveis, libere nome/participação e escolha as informações e ações permitidas.
+- Abra **⋯ no cartão → Acesso**. Atribua os responsáveis, libere nome/participação e marque, no cartão de cada jogador, quais ações ele pode executar.
 - Abra **Marcadores** para configurar HP e até 11 recursos adicionais. Cada marcador tem nome, cor, audiência, exibição e permissão de edição.
 - Use **Engrenagem → Ver como** para conferir a visão de um jogador, sem executar ações por ele.
 - Todas as informações começam restritas aos mestres. Ser responsável pelo token não concede acesso automaticamente.
@@ -34,7 +34,9 @@ Dano aceita números e dados, como `2d6+3`, categorias e reduções em sequênci
 
 ## Painel compacto
 
-Clique no **valor ou barra de HP** para escolher Dano, Cura ou Ajuste; clique nos demais recursos para editá-los. Só aparecem ações autorizadas. Informações sem permissão de edição permanecem em modo de leitura. Os detalhes de um único cartão ficam abertos por vez.
+Clique no **valor ou barra de HP** para escolher Dano, Cura ou Ajuste; clique nos demais recursos para editá-los. No modo Ajuste, HP atual e HP máximo possuem campos e permissões independentes. Alterar o máximo preserva o HP atual, inclusive valores negativos e sobrevida. Só aparecem ações autorizadas. Os detalhes de um único cartão ficam abertos por vez.
+
+O mestre concede individualmente **Informar iniciativa**, **Aplicar dano**, **Aplicar cura**, **Ajustar HP atual**, **Ajustar HP máximo**, **Alterar condições** e **Encerrar o próprio turno**. Dano, cura, ajustes e condições não exigem responsabilidade pelo token; iniciativa e encerramento exigem. O token precisa estar visível no painel do jogador. As ações continuam disponíveis com HP em porcentagem ou oculto, sem revelar o resultado exato. Se condições estiverem ocultas, o jogador autorizado escolhe a definição e a operação sem ver condições aplicadas, stacks ou duração.
 
 O botão **⋯ no cartão** reúne condições, defesas, acesso, marcadores, posição e ordem. Configurações completas continuam em janelas próprias. A confirmação de salvamento aparece brevemente no rodapé. A prévia do jogador é somente leitura e tem **Voltar ao mestre**.
 
@@ -65,7 +67,7 @@ Os dados originais são preservados e não há sincronização contínua. Depois
 
 O background elege um mestre coordenador e processa comandos em sequência. Durante reconexões há uma breve espera. Se o estado mudou, a ação é rejeitada para evitar sobrescrever alterações. Se uma confirmação não chegar, confira os valores antes de tentar de novo: a Rulebear não repete a ação automaticamente.
 
-Cenas v1 e v2 são migradas para v3 por um mestre, preservando HP, defesas, condições, histórico, turno e o Undo compatível da v2. A migração v1 inicia acesso restrito, não atribui iniciativas e reinicia o Undo antigo. Antes da conversão, o navegador do mestre guarda um backup. Exporte-o pela engrenagem em **Baixar backups anteriores à migração**; esse arquivo contém os dados originais para recuperação. Não limpe o armazenamento do navegador antes de exportar. Se não puder salvar o backup, a migração não grava a cena. Todos os participantes devem recarregar a Rulebear após a atualização.
+Cenas v1, v2 e v3 são migradas para v4 por um mestre, preservando HP, defesas, condições, histórico, turno, marcadores e Undo compatível. Permissões antigas habilitadas são atribuídas aos responsáveis atuais. A antiga edição da barra de HP concede ajuste do HP atual aos responsáveis; o ajuste do máximo começa bloqueado. Cenas v1 iniciam todas as ações bloqueadas. Antes da conversão, o navegador do mestre guarda um backup. Exporte-o pela engrenagem em **Baixar backups anteriores à migração**; esse arquivo contém os dados originais para recuperação. Não limpe o armazenamento do navegador antes de exportar. Se não puder salvar o backup, a migração não grava a cena. Todos os participantes devem recarregar a Rulebear após a atualização.
 
 Dados inválidos ou versões futuras não são substituídos. Limites: 50 combatentes, 12 marcadores por token, 25 definições de condição, 25 modelos e 50 registros de histórico.
 

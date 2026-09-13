@@ -52,6 +52,11 @@
 .compact-app .token-display-options select { width: 100%; min-width: 0; font-size: 11px; }
 .compact-app .quick-form { display: flex; align-items: end; flex-wrap: wrap; gap: 6px; }
 .compact-app .quick-form > label { flex: 1 1 110px; min-width: 0; }
+.compact-app .condition-action-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: end; }
+.compact-app .condition-action-form .button { grid-column: 1 / -1; }
+.compact-app .hp-adjust-grid { display: grid; gap: 9px; }
+.compact-app .permission-player { display: grid; gap: 7px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
+.compact-app .permission-player > strong { margin-bottom: 2px; }
 .compact-app .context-editor { display: grid; gap: 10px; }
 .compact-app form.quick-form.context-editor { display: flex; }
 .compact-app .editor-modes { display: flex; gap: 4px; }
@@ -75,4 +80,5 @@
   .compact-app .encounter-strip h1 { font-size: 14px; }
   .compact-app .encounter-strip .button { padding-inline: 7px; }
   .compact-app .reduction-row { grid-template-columns: 1fr 52px; }
+  .compact-app .condition-action-form { grid-template-columns: 1fr; }
 }

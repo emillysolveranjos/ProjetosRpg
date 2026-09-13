@@ -6,7 +6,9 @@ export function visibleCombatant(c: CombatantState, viewer: Viewer): boolean {
   return allowed(c.settings.visibility.identity, c, viewer);
 }
 export function permitted(c: CombatantState, viewer: Viewer, action: keyof CombatantState["settings"]["permissions"]): boolean {
-  return viewer.role === "GM" || (visibleCombatant(c, viewer) && c.settings.owners.includes(viewer.id) && c.settings.permissions[action]);
+  if (viewer.role === "GM") return true;
+  if (!visibleCombatant(c, viewer) || !c.settings.permissions[action].includes(viewer.id)) return false;
+  return action !== "initiative" && action !== "endTurn" || c.settings.owners.includes(viewer.id);
 }
 export function markerVisible(m: Marker, c: CombatantState, viewer: Viewer): boolean {
   return viewer.role === "GM" || (visibleCombatant(c, viewer) && m.display !== "HIDDEN" && allowed(m.audience, c, viewer));

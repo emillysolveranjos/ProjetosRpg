@@ -23,6 +23,11 @@ export function assertHpValue(value: number, label = "HP atual"): void {
     throw new Error(`${label} deve ser um inteiro entre -${HP_LIMIT} e ${HP_LIMIT}.`);
   }
 }
+export function assertMaximumHp(value: number): void {
+  if (!Number.isSafeInteger(value) || value < 1 || value > HP_LIMIT) {
+    throw new Error(`O HP máximo deve ser um inteiro entre 1 e ${HP_LIMIT}.`);
+  }
+}
 
 function normalizeCategories(categories: string[]): string[] {
   return [...new Set(categories.map((category) => category.trim().toLocaleUpperCase("pt-BR")).filter(Boolean))];
@@ -70,7 +75,7 @@ export function addCombatant(
   if (!tokenId) throw new Error("Token inválido.");
   if (current.combatants[tokenId]) throw new Error("Este token já está na Rulebear.");
   if (Object.keys(current.combatants).length >= MAX_COMBATANTS) throw new Error(`A cena aceita no máximo ${MAX_COMBATANTS} combatentes.`);
-  if (!Number.isSafeInteger(maximumHp) || maximumHp < 1 || maximumHp > HP_LIMIT) throw new Error(`O HP máximo deve ser um inteiro entre 1 e ${HP_LIMIT}.`);
+  assertMaximumHp(maximumHp);
   assertHpValue(currentHp);
 
   const state = clone(current);

@@ -15,7 +15,7 @@ export class MockOwlbearGateway implements OwlbearGateway {
       c.settings.owners = ["player"];
       for (const a of Object.values(c.settings.visibility)) a.mode = "ALL";
       for (const m of c.markers) { m.audience.mode = "ALL"; m.editable = true; }
-      c.settings.permissions = { initiative: true, damage: true, heal: true, conditions: true, endTurn: true };
+      c.settings.permissions = { initiative: ["player"], damage: ["player"], heal: ["player"], adjustCurrentHp: ["player"], adjustMaximumHp: ["player"], conditions: ["player"], endTurn: ["player"] };
     }
   }
   async ready() {}
