@@ -53,6 +53,6 @@ A auditoria atual encontra duas ocorrências moderadas transitivas na cadeia SDK
 
 ## Publicação
 
-A versão 2.2.0 está preparada localmente para o workflow manual da branch `main` e ainda não foi publicada. O build validou manifesto, action.html, background.html, icon.svg, action-icon.svg e os JS/CSS sob `/ProjetosRpg/`; o pacote não contém source maps nem node_modules.
+A versão 2.2.0 foi publicada com sucesso pelo workflow manual da branch `main`. Manifesto, action.html, background.html, icon.svg, action-icon.svg e todos os JS/CSS referenciados responderam por HTTPS sob `/ProjetosRpg/`; o pacote não contém source maps nem node_modules.
 
 Rollback do código não converte cenas v4 para versões anteriores; preserve/exporte os backups antes de uma recuperação.
