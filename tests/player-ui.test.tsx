@@ -91,11 +91,11 @@ describe("painel de jogadores", () => {
   it("expande apenas um cartão e mantém a edição recolhida inicialmente", async () => {
     const { gm } = setup(); render(<App gateway={gm} />);
     await screen.findByText("2 combatentes");
-    expect(screen.queryByLabelText("Dano (ex.: 2d6+3)")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Dano")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Ações de HP: 13/29" }));
-    expect(screen.getByLabelText("Dano (ex.: 2d6+3)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Dano")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Detalhes de B" }));
-    expect(screen.queryByLabelText("Dano (ex.: 2d6+3)")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Dano")).not.toBeInTheDocument();
     expect(screen.getAllByRole("region", { name: "Detalhes do combatente" })).toHaveLength(1);
   });
   it("mostra ajustes separados de HP atual e máximo conforme a autorização", async () => {
@@ -108,6 +108,15 @@ describe("painel de jogadores", () => {
     expect(screen.getByLabelText("Ajustar HP atual")).toBeInTheDocument();
     expect(screen.getByLabelText("Ajustar HP máximo")).toBeInTheDocument();
     expect(screen.queryByText("13/29")).not.toBeInTheDocument();
+  });
+  it("oferece imunidade, penetração e múltiplos componentes ao jogador autorizado", async () => {
+    const { n, p } = setup();
+    const s = parseSceneState(n.value); s.combatants.a!.settings.permissions.heal = []; s.combatants.a!.settings.permissions.damage = ["p"];
+    n.value = s; render(<App gateway={p} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ações de HP: 45%" }));
+    expect(screen.getByLabelText("Ignorar imunidade")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ignorar RD")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "＋ Adicionar componente" })).toBeInTheDocument();
   });
   it("permite escolher operação de condição sem revelar condições aplicadas", async () => {
     const { n, p } = setup();

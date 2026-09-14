@@ -1,11 +1,11 @@
 import * as engine from "./engine";
 import { markerEditable, permitted } from "./access";
 import { parseSceneState } from "../state/schema";
-import type { CombatantSettings, ConditionDefinition, DamageReduction, DamageTypeDefinition, DefensePreset, Marker, MarkerTemplate, Participant, RulebearSceneState, EncounterSnapshot } from "./types";
+import type { CombatantSettings, ConditionDefinition, DamageComponent, DamageReduction, DamageTypeDefinition, DefensePreset, Marker, MarkerTemplate, Participant, RulebearSceneState, EncounterSnapshot } from "./types";
 export type Command =
   | { type: "add"; tokenId: string; currentHp: number; maximumHp: number }
   | { type: "remove"; tokenId: string }
-  | { type: "damage"; tokenId: string; expression: string; damageTypeIds: string[]; bypass: boolean }
+  | { type: "damage"; tokenId: string; components: DamageComponent[] }
   | { type: "heal"; tokenId: string; amount: number }
   | { type: "hpAdjust"; tokenId: string; target: "CURRENT" | "MAXIMUM"; expression: string }
   | { type: "reductions"; tokenId: string; reductions: DamageReduction[] }
@@ -28,7 +28,7 @@ export type Command =
   | { type: "markerValue"; tokenId: string; markerId: string; expression?: string; checked?: boolean }
   | { type: "template"; template: MarkerTemplate } | { type: "deleteTemplate"; templateId: string }
   | { type: "prune"; tokenIds: string[] } | { type: "undo" };
-export interface CommandEnvelope { protocol: 5; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
+export interface CommandEnvelope { protocol: 6; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
 export function adjustValue(current: number, expression: string): number {
   const match = /^\s*(=|\+|-|\*|\/)?\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(expression);
   if (!match) throw new Error("Use um número, =valor, +valor, -valor, *valor ou /valor.");
@@ -66,7 +66,7 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
   switch (command.type) {
     case "add": next = engine.addCombatant(next, command.tokenId, command.currentHp, command.maximumHp); break;
     case "remove": next = engine.removeCombatant(next, command.tokenId); break;
-    case "damage": next = engine.applyDamage(next, command.tokenId, command.expression, command.damageTypeIds, actor.role === "GM" && command.bypass).state; break;
+    case "damage": next = engine.applyDamageComponents(next, command.tokenId, command.components).state; break;
     case "heal": next = engine.applyHealing(next, command.tokenId, command.amount).state; break;
     case "hpAdjust": {
       const value = adjustValue(command.target === "CURRENT" ? c!.currentHp : c!.maximumHp, command.expression);
@@ -167,10 +167,12 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
       return parseSceneState(next);
     default: throw new Error("Comando desconhecido.");
   }
-  const added = next.history.slice(current.history.length < 50 ? current.history.length : 49);
+  const added = next.history.filter((entry) => !current.history.some((old) => old.id === entry.id));
+  const damageDetails = added.flatMap((entry) => entry.damageDetails ?? []);
   const summary = command.type === "advance" ? "Turno avançado; efeitos de fim e início aplicados." : added[0]?.id !== current.history.at(-1)?.id && next.revision > current.revision ? added.map((e) => e.summary).join(" · ").slice(0, 240) : command.type === "settings" ? "Permissões atualizadas." : command.type === "markerValue" || command.type === "markers" ? "Marcadores atualizados." : command.type === "hpAdjust" ? "HP ajustado." : command.type.includes("DamageType") || command.type.includes("DefensePreset") ? "Biblioteca atualizada." : "Encontro atualizado.";
   const historyId = crypto.randomUUID();
   next.history = [...current.history, { id: historyId, occurredAt: new Date().toISOString(), kind: "ENCOUNTER_CHANGED" as const, summary, tokenId: "tokenId" in command ? command.tokenId : current.activeTokenId }].slice(-50);
+  if (damageDetails.length) next.history.at(-1)!.damageDetails = damageDetails;
   next.undo = { historyId, snapshot: snapshot(current) };
   next.revision = current.revision + 1;
   return parseSceneState(next);

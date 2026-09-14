@@ -32,6 +32,12 @@ export function visibleHistory(state: RulebearSceneState, viewer: Viewer): Histo
     const c = entry.tokenId ? state.combatants[entry.tokenId] : undefined;
     if (!c || !visibleCombatant(c, viewer) || !allowed(c.settings.visibility.history, c, viewer)) return [];
     // Legacy summaries can contain hidden values and condition names. Never reuse them for players.
-    return [{ id: entry.id, tokenId: entry.tokenId, kind: entry.kind, occurredAt: entry.occurredAt, undoneAt: entry.undoneAt, summary: "Informações do combatente atualizadas." }];
+    const damageDetails = entry.damageDetails?.filter((detail) => {
+      const target = state.combatants[detail.tokenId];
+      if (!target || !visibleCombatant(target, viewer) || !allowed(target.settings.visibility.history, target, viewer) || !allowed(target.settings.visibility.defenses, target, viewer)) return false;
+      const hp = target.markers.find((marker) => marker.hp);
+      return !!hp && markerVisible(hp, target, viewer) && hp.display === "FULL" && (!detail.source || allowed(target.settings.visibility.conditions, target, viewer));
+    });
+    return [{ id: entry.id, tokenId: entry.tokenId, kind: entry.kind, occurredAt: entry.occurredAt, undoneAt: entry.undoneAt, summary: "Informações do combatente atualizadas.", ...(damageDetails?.length ? { damageDetails } : {}) }];
   });
 }

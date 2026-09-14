@@ -1,11 +1,20 @@
 export type Trigger = "TURN_START" | "TURN_END";
 export type EffectKind = "DAMAGE" | "HEAL";
+export type DefenseKind = "REDUCTION" | "IMMUNITY";
 
 export interface DamageReduction {
   id: string;
   label: string;
+  kind: DefenseKind;
   amount: number;
   damageTypeIds: string[];
+}
+
+export interface DamageComponent {
+  expression: string;
+  damageTypeIds: string[];
+  ignoreImmunity: boolean;
+  ignoreReductionExpression?: string;
 }
 
 export interface ConditionEffect {
@@ -15,7 +24,8 @@ export interface ConditionEffect {
   expression: string;
   damageTypeIds: string[];
   multiplyByStacks: boolean;
-  bypassReductions: boolean;
+  ignoreImmunity: boolean;
+  ignoreReductionExpression?: string;
 }
 
 export interface ConditionDefinition {
@@ -62,6 +72,7 @@ export type HistoryKind =
   | "TURN_END" | "ENCOUNTER_CHANGED" | "MARKER_CHANGED" | "ACCESS_CHANGED" | "LIBRARY_CHANGED";
 
 export interface HistoryEntry {
+  damageDetails?: DamageHistoryDetail[];
   id: string;
   occurredAt: string;
   kind: HistoryKind;
@@ -69,6 +80,18 @@ export interface HistoryEntry {
   tokenId?: string;
   amount?: number;
   undoneAt?: string;
+}
+
+export interface DamageHistoryDetail {
+  tokenId: string;
+  source?: string;
+  types: string[];
+  raw: number;
+  rd: number;
+  penetration: number;
+  immune: boolean;
+  ignoreImmunity: boolean;
+  final: number;
 }
 
 export interface UndoRecord {
@@ -82,7 +105,7 @@ export interface UndoRecord {
 }
 
 export interface RulebearSceneState {
-  schemaVersion: 5;
+  schemaVersion: 6;
   sceneId: string;
   encounter: Encounter;
   templates: MarkerTemplate[];
@@ -110,9 +133,26 @@ export interface DamageResult {
   baseAmount: number;
   rawAmount: number;
   reducedBy: number;
+  ignoredReduction: number;
+  blockedByImmunity: boolean;
   finalAmount: number;
   hpBefore: number;
   hpAfter: number;
+  components: DamageComponentResult[];
+}
+
+export interface DamageComponentResult extends DamageComponent {
+  expression: string;
+  rolls: number[];
+  baseAmount: number;
+  rawAmount: number;
+  penetrationRolls: number[];
+  penetrationAmount: number;
+  availableReduction: number;
+  ignoredReduction: number;
+  reducedBy: number;
+  blockedByImmunity: boolean;
+  finalAmount: number;
 }
 
 export interface TriggerResult {
@@ -130,6 +170,7 @@ export interface DamageTypeDefinition {
 export interface DefensePreset {
   id: string;
   name: string;
+  kind: DefenseKind;
   amount: number;
   damageTypeIds: string[];
 }

@@ -77,7 +77,7 @@ describe("coordenação multiplayer", () => {
     const stop = startCoordinator(gm); await vi.advanceTimersByTimeAsync(6500);
     expect(n.value).toEqual(legacy); expect(n.writes).toBe(0);
     n.failBackup = false; await vi.advanceTimersByTimeAsync(2000);
-    expect(n.backups).toEqual([legacy]); expect(parseSceneState(n.value).schemaVersion).toBe(5);
+    expect(n.backups).toEqual([legacy]); expect(parseSceneState(n.value).schemaVersion).toBe(6);
     stop();
   });
   it("rejeita protocolo antigo com orientação para recarregar", async () => {
@@ -92,7 +92,7 @@ describe("coordenação multiplayer", () => {
     n.value = v2;
     const stop = startCoordinator(gm); await vi.advanceTimersByTimeAsync(6500);
     expect(n.backups).toEqual([v2]);
-    expect(parseSceneState(n.value).schemaVersion).toBe(5);
+    expect(parseSceneState(n.value).schemaVersion).toBe(6);
     stop();
   });
   it("não repete automaticamente uma ação sem confirmação", async () => {

@@ -4,7 +4,7 @@ import { createEmptyState, parseSceneState } from "../src/state/schema";
 
 describe("metadata da cena", () => {
   it("cria estado vazio versionado", () => {
-    expect(createEmptyState()).toMatchObject({ schemaVersion: 5, revision: 0, combatants: {}, conditionDefinitions: [], defensePresets: [], history: [], encounter: { order: [], round: 0 } });
+    expect(createEmptyState()).toMatchObject({ schemaVersion: 6, revision: 0, combatants: {}, conditionDefinitions: [], defensePresets: [], history: [], encounter: { order: [], round: 0 } });
   });
 
   it("aceita uma metadata válida", () => {
@@ -31,10 +31,16 @@ describe("metadata da cena", () => {
 
   it("rejeita referências de tipos inexistentes e nomes equivalentes", () => {
     const state = addCombatant(createEmptyState(), "token", 4, 8);
-    state.combatants.token!.reductions = [{ id: "bad", label: "Inválida", amount: 1, damageTypeIds: ["missing"] }];
+    state.combatants.token!.reductions = [{ id: "bad", label: "Inválida", kind: "REDUCTION", amount: 1, damageTypeIds: ["missing"] }];
     expect(() => parseSceneState(state)).toThrow("inexistentes");
     state.combatants.token!.reductions = [];
     state.damageTypes.push({ id: "duplicate", name: "fisico", color: "#ffffff" });
     expect(() => parseSceneState(state)).toThrow("repetidos");
+  });
+
+  it("rejeita valor numérico em imunidades", () => {
+    const state = addCombatant(createEmptyState(), "token", 4, 8);
+    state.combatants.token!.reductions = [{ id: "immune", label: "Imune", kind: "IMMUNITY", amount: 1, damageTypeIds: [] }];
+    expect(() => parseSceneState(state)).toThrow("não possuem valor");
   });
 });

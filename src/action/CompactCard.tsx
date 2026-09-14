@@ -1,10 +1,10 @@
 import { useState } from "react";
-import type { CombatantState, Marker, MarkerDisplayLayout, RulebearSceneState, TokenDisplayOverride, TokenView, Viewer } from "../domain/types";
+import type { CombatantState, DamageComponent, Marker, MarkerDisplayLayout, RulebearSceneState, TokenDisplayOverride, TokenView, Viewer } from "../domain/types";
 import { allowed, markerEditable, markerNumbers, markerText, markerVisible, permitted } from "../domain/access";
 import { useAppStore } from "../state/store";
 import { AccessEditor } from "./AccessEditor";
 import { MarkerEditor } from "./MarkerEditor";
-import { DamageTypeChecks, ReductionEditor } from "./RuleEditors";
+import { blankDamageComponent, DamageComponentRows, ReductionEditor } from "./RuleEditors";
 import { Dialog, TokenPortrait } from "./Shared";
 
 interface Props {
@@ -72,7 +72,7 @@ export function CompactCard({ combatant: c, token, state, viewer, readOnly, prev
     </section>}
     {modal === "access" && gm && expanded && <AccessEditor combatant={c} onClose={() => setModal(null)} />}
     {modal === "markers" && gm && expanded && <MarkerEditor combatant={c} onClose={() => setModal(null)} />}
-    {modal === "defenses" && expanded && allowed(c.settings.visibility.defenses, c, viewer) && <Dialog title="Defesas do token" onClose={() => setModal(null)}>{gm ? <fieldset disabled={readOnly} className="dialog-guard"><ReductionEditor state={state} combatant={c} onDone={() => setModal(null)} /></fieldset> : c.reductions.length ? <div className="readonly-defenses">{c.reductions.map((r, index) => <article className="defense-card compact" key={r.id}><strong>{index + 1}. {r.label}</strong><span>Redução {r.amount}</span><div className="mini-chips">{r.damageTypeIds.length ? r.damageTypeIds.map((typeId) => <span key={typeId}>{state.damageTypes.find((type) => type.id === typeId)?.name ?? "Tipo"}</span>) : <span>Universal</span>}</div></article>)}</div> : <div className="empty-inline"><strong>Sem defesas</strong><span>O mestre ainda não configurou reduções para este token.</span></div>}</Dialog>}
+    {modal === "defenses" && expanded && allowed(c.settings.visibility.defenses, c, viewer) && <Dialog title="Defesas do token" onClose={() => setModal(null)}>{gm ? <fieldset disabled={readOnly} className="dialog-guard"><ReductionEditor state={state} combatant={c} onDone={() => setModal(null)} /></fieldset> : c.reductions.length ? <div className="readonly-defenses">{c.reductions.map((r, index) => <article className="defense-card compact" key={r.id}><strong>{index + 1}. {r.label}</strong><span>{r.kind === "IMMUNITY" ? "Imunidade" : `RD ${r.amount}`}</span><div className="mini-chips">{r.damageTypeIds.length ? r.damageTypeIds.map((typeId) => <span key={typeId}>{state.damageTypes.find((type) => type.id === typeId)?.name ?? "Tipo"}</span>) : <span>Universal</span>}</div></article>)}</div> : <div className="empty-inline"><strong>Sem defesas</strong><span>O mestre ainda não configurou defesas para este token.</span></div>}</Dialog>}
   </article>;
 }
 
@@ -81,7 +81,8 @@ function HealthEditor({ combatant: c, viewer, disabled }: { combatant: Combatant
   const modes = [permitted(c, viewer, "damage") && "damage", permitted(c, viewer, "heal") && "heal", (canAdjustCurrent || canAdjustMaximum) && "adjust"].filter((m): m is string => !!m);
   const [selected, setSelected] = useState(modes[0] ?? "");
   const mode = modes.includes(selected) ? selected : modes[0];
-  const [value, setValue] = useState(""), [maximumValue, setMaximumValue] = useState(""), [damageTypeIds, setDamageTypeIds] = useState<string[]>([]), [bypass, setBypass] = useState(false);
+  const [value, setValue] = useState(""), [maximumValue, setMaximumValue] = useState("");
+  const [components, setComponents] = useState<DamageComponent[]>([blankDamageComponent()]);
   const command = useAppStore((s) => s.command);
   const labels: Record<string, string> = { damage: "Dano", heal: "Cura", adjust: "Ajuste" };
   if (mode === "adjust") return <div className="context-editor"><div className="editor-modes" role="group" aria-label="Ação de HP">{modes.map((m) => <button key={m} aria-pressed={mode === m} onClick={() => { setSelected(m); setValue(""); setMaximumValue(""); }}>{labels[m]}</button>)}</div><div className="hp-adjust-grid">
@@ -90,9 +91,9 @@ function HealthEditor({ combatant: c, viewer, disabled }: { combatant: Combatant
   </div></div>;
   return <div className="context-editor"><div className="editor-modes" role="group" aria-label="Ação de HP">{modes.map((m) => <button key={m} aria-pressed={mode === m} onClick={() => { setSelected(m); setValue(""); }}>{labels[m]}</button>)}</div><form className="form-stack" onSubmit={(e) => {
     e.preventDefault(); if (!mode || disabled) return;
-    const action = mode === "damage" ? { type: "damage" as const, tokenId: c.tokenId, expression: value, damageTypeIds, bypass } : { type: "heal" as const, tokenId: c.tokenId, amount: Number(value) };
-    void command(action).then((ok) => { if (ok) setValue(""); });
-  }}><div className="quick-form"><label>{mode === "damage" ? "Dano (ex.: 2d6+3)" : "HP a recuperar"}<input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Valor" /></label><button className="button primary" disabled={disabled || !value.trim()}>Aplicar {mode === "damage" ? "dano" : "cura"}</button></div>{mode === "damage" && <details className="damage-details"><summary>✦ Escolher tipos de dano</summary><DamageTypeChecks types={useAppStore.getState().state.damageTypes} selected={damageTypeIds} onChange={setDamageTypeIds} />{viewer.role === "GM" && <label className="check"><input type="checkbox" checked={bypass} onChange={(e) => setBypass(e.target.checked)} />Ignorar defesas</label>}</details>}</form></div>;
+    const action = mode === "damage" ? { type: "damage" as const, tokenId: c.tokenId, components } : { type: "heal" as const, tokenId: c.tokenId, amount: Number(value) };
+    void command(action).then((ok) => { if (ok) { setValue(""); if (mode === "damage") setComponents([blankDamageComponent()]); } });
+  }}>{mode === "damage" ? <><DamageComponentRows types={useAppStore.getState().state.damageTypes} components={components} onChange={setComponents} disabled={disabled} /><button className="button primary" disabled={disabled || components.some((component) => !component.expression.trim())}>Aplicar dano</button></> : <div className="quick-form"><label>HP a recuperar<input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Valor" /></label><button className="button primary" disabled={disabled || !value.trim()}>Aplicar cura</button></div>}</form></div>;
 }
 function ValueEditor({ marker: m, combatant: c, disabled }: { marker: Marker; combatant: CombatantState; disabled: boolean }) {
   const [expression, setExpression] = useState(""); const command = useAppStore((s) => s.command);

@@ -1,10 +1,13 @@
 import { defaultMarker, defaultSettings, normalizedDefinitionName } from "./defaults";
 import { MAX_COMBATANTS, MAX_DEFINITIONS, MAX_HISTORY } from "../config";
-import { evaluateExpression, type DieRoller } from "./dice";
+import { evaluateExpression, parseDice, type DieRoller } from "./dice";
+import { damageComponentSchema } from "../state/schema";
 import type {
   AppliedCondition,
   CombatantState,
   ConditionDefinition,
+  DamageComponent,
+  DamageComponentResult,
   DamageTypeDefinition,
   DamageReduction,
   DamageResult,
@@ -113,37 +116,143 @@ export function resolveDamage(
   combatant: CombatantState,
   expression: string,
   damageTypeIds: string[],
-  bypassReductions: boolean,
+  ignoreImmunity: boolean,
   multiplier = 1,
   rollDie?: DieRoller,
 ): DamageResult {
+  const component = resolveDamageComponent(combatant, {
+    expression,
+    damageTypeIds,
+    ignoreImmunity,
+  }, multiplier, rollDie);
+  return aggregateDamage(combatant.currentHp, [component]);
+}
+
+function defenseMatches(damageTypeIds: string[], defenseTypeIds: string[]): boolean {
+  return defenseTypeIds.length === 0 || damageTypeIds.some((typeId) => defenseTypeIds.includes(typeId));
+}
+
+function immunityCovers(combatant: CombatantState, damageTypeIds: string[]): boolean {
+  const immunities = combatant.reductions.filter((defense) => defense.kind === "IMMUNITY");
+  if (immunities.some((defense) => defense.damageTypeIds.length === 0)) return true;
+  if (damageTypeIds.length === 0) return false;
+  const covered = new Set(immunities.flatMap((defense) => defense.damageTypeIds));
+  return damageTypeIds.every((typeId) => covered.has(typeId));
+}
+
+function validatePenetration(expression: string | undefined) {
+  if (!expression?.trim()) return;
+  const value = expression.trim();
+  if (/^\d+$/.test(value)) {
+    if (!Number.isSafeInteger(Number(value)) || Number(value) > 1_000_000) throw new Error("RD ignorada fora do limite.");
+  } else {
+    try { parseDice(value); }
+    catch (error) { throw new Error("RD ignorada inválida. Use um número ou dados como 1d6+2.", { cause: error }); }
+  }
+}
+
+function resolvePenetration(expression: string | undefined, rollDie?: DieRoller): { amount: number; rolls: number[] } {
+  if (!expression?.trim()) return { amount: 0, rolls: [] };
+  if (expression.trim() === "0") return { amount: 0, rolls: [] };
+  let rolled: ReturnType<typeof evaluateExpression>;
+  try { rolled = evaluateExpression(expression, rollDie); }
+  catch (error) { throw new Error(`RD ignorada inválida: ${error instanceof Error ? error.message : "expressão inválida."}`, { cause: error }); }
+  if (!Number.isSafeInteger(rolled.total) || rolled.total < 0 || rolled.total > 1_000_000) {
+    throw new Error("A RD ignorada precisa resultar em um inteiro entre 0 e 1.000.000.");
+  }
+  return { amount: rolled.total, rolls: rolled.rolls };
+}
+
+export function resolveDamageComponent(
+  combatant: CombatantState,
+  component: DamageComponent,
+  multiplier = 1,
+  rollDie?: DieRoller,
+): DamageComponentResult {
   if (!Number.isInteger(multiplier) || multiplier < 1 || multiplier > 99) throw new Error("Multiplicador inválido.");
-  const rolled = evaluateExpression(expression, rollDie);
+  const rolled = evaluateExpression(component.expression, rollDie);
   const rawAmount = rolled.total * multiplier;
   if (!Number.isSafeInteger(rawAmount) || rawAmount <= 0) throw new Error("O dano precisa resultar em um valor positivo.");
-  const selected = uniqueIds(damageTypeIds);
-  let remaining = rawAmount;
-  let reducedBy = 0;
-  if (!bypassReductions) {
-    for (const reduction of combatant.reductions) {
-      const applies = reduction.damageTypeIds.length === 0
-        || reduction.damageTypeIds.some((typeId) => selected.includes(typeId));
-      if (!applies || remaining === 0) continue;
-      const applied = Math.min(remaining, reduction.amount);
-      remaining -= applied;
-      reducedBy += applied;
-    }
-  }
+  const selected = uniqueIds(component.damageTypeIds);
+  const blockedByImmunity = !component.ignoreImmunity && immunityCovers(combatant, selected);
+  const penetration = resolvePenetration(component.ignoreReductionExpression, rollDie);
+  const availableReduction = blockedByImmunity ? 0 : combatant.reductions
+    .filter((defense) => defense.kind === "REDUCTION" && defenseMatches(selected, defense.damageTypeIds))
+    .reduce((total, defense) => total + defense.amount, 0);
+  const ignoredReduction = Math.min(availableReduction, penetration.amount);
+  const effectiveReduction = Math.max(0, availableReduction - penetration.amount);
+  const reducedBy = blockedByImmunity ? 0 : Math.min(rawAmount, effectiveReduction);
+  const finalAmount = blockedByImmunity ? 0 : Math.max(0, rawAmount - effectiveReduction);
   return {
+    ...component,
     expression: rolled.expression,
     rolls: rolled.rolls,
     baseAmount: rolled.total,
     rawAmount,
+    penetrationRolls: penetration.rolls,
+    penetrationAmount: penetration.amount,
+    availableReduction,
+    ignoredReduction,
     reducedBy,
-    finalAmount: remaining,
-    hpBefore: combatant.currentHp,
-    hpAfter: combatant.currentHp - remaining,
+    blockedByImmunity,
+    finalAmount,
   };
+}
+
+function aggregateDamage(hpBefore: number, components: DamageComponentResult[]): DamageResult {
+  const rawAmount = components.reduce((total, component) => total + component.rawAmount, 0);
+  const finalAmount = components.reduce((total, component) => total + component.finalAmount, 0);
+  return {
+    expression: components.map((component) => component.expression).join(" + "),
+    rolls: components.flatMap((component) => component.rolls),
+    baseAmount: components.reduce((total, component) => total + component.baseAmount, 0),
+    rawAmount,
+    reducedBy: components.reduce((total, component) => total + component.reducedBy, 0),
+    ignoredReduction: components.reduce((total, component) => total + component.ignoredReduction, 0),
+    blockedByImmunity: components.some((component) => component.blockedByImmunity),
+    finalAmount,
+    hpBefore,
+    hpAfter: hpBefore - finalAmount,
+    components,
+  };
+}
+
+export function applyDamageComponents(
+  current: RulebearSceneState,
+  tokenId: string,
+  components: DamageComponent[],
+  multiplier = 1,
+  rollDie?: DieRoller,
+): { state: RulebearSceneState; result: DamageResult } {
+  if (!components.length || components.length > 12) throw new Error("Informe entre 1 e 12 componentes de dano.");
+  const before = clone(getCombatant(current, tokenId));
+  const validated = components.map((input) => {
+    const component = damageComponentSchema.parse(input);
+    validatePenetration(component.ignoreReductionExpression);
+    return ({
+    expression: component.expression,
+    damageTypeIds: validateDamageTypeIds(current, component.damageTypeIds),
+    ignoreImmunity: component.ignoreImmunity,
+    ...(component.ignoreReductionExpression?.trim() ? { ignoreReductionExpression: component.ignoreReductionExpression.trim() } : {}),
+    });
+  });
+  const resolved = validated.map((component) => resolveDamageComponent(before, component, multiplier, rollDie));
+  const result = aggregateDamage(before.currentHp, resolved);
+  assertHpValue(result.hpAfter);
+  const state = clone(current);
+  getCombatant(state, tokenId).currentHp = result.hpAfter;
+  const details = [
+    result.reducedBy ? `${result.reducedBy} reduzido` : "",
+    result.ignoredReduction ? `${result.ignoredReduction} RD ignorada` : "",
+    result.components.some((component) => component.blockedByImmunity) ? "componente imune" : "",
+  ].filter(Boolean).join(" · ");
+  const next = commit(state, "DAMAGE", `${result.finalAmount} de dano${details ? ` · ${details}` : ""}`, combatantUndo(tokenId, before), tokenId, result.finalAmount);
+  next.history.at(-1)!.damageDetails = resolved.map((component) => damageHistory(current, tokenId, component));
+  return { state: next, result };
+}
+
+function damageHistory(state: RulebearSceneState, tokenId: string, component: DamageComponentResult, source?: string) {
+  return { tokenId, ...(source ? { source } : {}), types: component.damageTypeIds.map((id) => state.damageTypes.find((type) => type.id === id)?.name ?? "Tipo"), raw: component.rawAmount, rd: component.availableReduction, penetration: component.penetrationAmount, immune: component.blockedByImmunity, ignoreImmunity: component.ignoreImmunity, final: component.finalAmount };
 }
 
 export function applyDamage(
@@ -151,26 +260,11 @@ export function applyDamage(
   tokenId: string,
   expression: string,
   damageTypeIds: string[] = [],
-  bypassReductions = false,
+  ignoreImmunity = false,
   multiplier = 1,
   rollDie?: DieRoller,
 ): { state: RulebearSceneState; result: DamageResult } {
-  const before = clone(getCombatant(current, tokenId));
-  const state = clone(current);
-  const combatant = getCombatant(state, tokenId);
-  const selected = validateDamageTypeIds(current, damageTypeIds);
-  const result = resolveDamage(combatant, expression, selected, bypassReductions, multiplier, rollDie);
-  assertHpValue(result.hpAfter);
-  combatant.currentHp = result.hpAfter;
-  const next = commit(
-    state,
-    "DAMAGE",
-    `${result.finalAmount} de dano${result.reducedBy ? ` · ${result.reducedBy} reduzido` : ""}`,
-    combatantUndo(tokenId, before),
-    tokenId,
-    result.finalAmount,
-  );
-  return { state: next, result };
+  return applyDamageComponents(current, tokenId, [{ expression, damageTypeIds, ignoreImmunity }], multiplier, rollDie);
 }
 
 export function applyHealing(
@@ -197,7 +291,8 @@ export function setReductions(
 ): RulebearSceneState {
   if (reductions.length > 24) throw new Error("Um combatente aceita no máximo 24 reduções.");
   for (const reduction of reductions) {
-    if (!reduction.label.trim() || !Number.isInteger(reduction.amount) || reduction.amount < 0 || reduction.amount > 1_000_000) throw new Error("Redução inválida.");
+    if (!reduction.label.trim() || !["REDUCTION", "IMMUNITY"].includes(reduction.kind)) throw new Error("Defesa inválida.");
+    if (!Number.isInteger(reduction.amount) || reduction.amount < 0 || reduction.amount > 1_000_000 || (reduction.kind === "IMMUNITY" && reduction.amount !== 0)) throw new Error("Redução inválida.");
     validateDamageTypeIds(current, reduction.damageTypeIds);
   }
   const before = clone(getCombatant(current, tokenId));
@@ -205,6 +300,7 @@ export function setReductions(
   getCombatant(state, tokenId).reductions = reductions.map((reduction) => ({
     ...reduction,
     label: reduction.label.trim(),
+    amount: reduction.kind === "IMMUNITY" ? 0 : reduction.amount,
     damageTypeIds: uniqueIds(reduction.damageTypeIds),
   }));
   return commit(state, "REDUCTION_CHANGED", "Reduções atualizadas", combatantUndo(tokenId, before), tokenId);
@@ -272,9 +368,11 @@ export function saveDefensePreset(current: RulebearSceneState, preset: DefensePr
   const cleaned: DefensePreset = {
     id: preset.id || newId(),
     name: cleanLibraryName(preset.name, "O nome do preset"),
-    amount: preset.amount,
+    kind: preset.kind,
+    amount: preset.kind === "IMMUNITY" ? 0 : preset.amount,
     damageTypeIds: validateDamageTypeIds(current, preset.damageTypeIds),
   };
+  if (!["REDUCTION", "IMMUNITY"].includes(cleaned.kind)) throw new Error("Escolha redução fixa ou imunidade.");
   if (!Number.isInteger(cleaned.amount) || cleaned.amount < 0 || cleaned.amount > 1_000_000) throw new Error("A redução deve ser um inteiro entre 0 e 1.000.000.");
   assertUniqueLibraryName(current.defensePresets, cleaned, "um preset de defesa");
   const state = clone(current);
@@ -300,6 +398,7 @@ export function applyDefensePreset(current: RulebearSceneState, tokenId: string,
   return setReductions(current, tokenId, [...combatant.reductions, {
     id: newId(),
     label: preset.name,
+    kind: preset.kind,
     amount: preset.amount,
     damageTypeIds: [...preset.damageTypeIds],
   }]);
@@ -315,6 +414,8 @@ export function saveConditionDefinition(
   for (const effect of definition.effects) {
     evaluateExpression(effect.expression, () => 1);
     if (effect.kind === "HEAL" && effect.damageTypeIds.length) throw new Error("Efeitos de cura não usam tipos de dano.");
+    if (effect.kind === "HEAL" && (effect.ignoreImmunity || effect.ignoreReductionExpression)) throw new Error("Efeitos de cura não usam imunidade ou RD.");
+    if (effect.kind === "DAMAGE") validatePenetration(effect.ignoreReductionExpression);
     validateDamageTypeIds(current, effect.damageTypeIds);
   }
   const state = clone(current);
@@ -322,7 +423,12 @@ export function saveConditionDefinition(
     ...clone(definition),
     name: definition.name.trim(),
     ...(definition.description?.trim() ? { description: definition.description.trim() } : {}),
-    effects: definition.effects.map((effect) => ({ ...effect, damageTypeIds: uniqueIds(effect.damageTypeIds) })),
+    effects: definition.effects.map((effect) => ({
+      ...effect,
+      damageTypeIds: effect.kind === "DAMAGE" ? uniqueIds(effect.damageTypeIds) : [],
+      ignoreImmunity: effect.kind === "DAMAGE" && effect.ignoreImmunity,
+      ...(effect.kind === "DAMAGE" && effect.ignoreReductionExpression?.trim() ? { ignoreReductionExpression: effect.ignoreReductionExpression.trim() } : {}),
+    })),
   };
   if (!definition.description?.trim()) delete cleaned.description;
   if (index >= 0) state.conditionDefinitions[index] = cleaned;
@@ -410,6 +516,7 @@ export function processTurn(
   const combatant = getCombatant(state, tokenId);
   if (trigger === "TURN_START") state.activeTokenId = tokenId;
   const messages: string[] = [];
+  const damageDetails: NonNullable<HistoryEntry["damageDetails"]> = [];
   const conditionSnapshot = [...combatant.conditions];
 
   for (const applied of conditionSnapshot) {
@@ -418,9 +525,10 @@ export function processTurn(
     for (const effect of definition.effects.filter((item) => item.trigger === trigger)) {
       const multiplier = effect.multiplyByStacks ? applied.stacks : 1;
       if (effect.kind === "DAMAGE") {
-        const result = resolveDamage(combatant, effect.expression, effect.damageTypeIds, effect.bypassReductions, multiplier, rollDie);
-        assertHpValue(result.hpAfter);
-        combatant.currentHp = result.hpAfter;
+        const result = resolveDamageComponent(combatant, effect, multiplier, rollDie);
+        damageDetails.push(damageHistory(state, tokenId, result, definition.name));
+        assertHpValue(combatant.currentHp - result.finalAmount);
+        combatant.currentHp -= result.finalAmount;
         messages.push(`${definition.name}: ${result.finalAmount} de dano`);
       } else {
         const rolled = evaluateExpression(effect.expression, rollDie);
@@ -448,16 +556,15 @@ export function processTurn(
 
   if (trigger === "TURN_END") delete state.activeTokenId;
   const label = trigger === "TURN_START" ? "Turno iniciado" : "Turno encerrado";
-  return {
-    state: commit(
+  const committed = commit(
       state,
       trigger,
-      messages.length ? `${label} · ${messages.join(" · ")}` : label,
+      (messages.length ? `${label} · ${messages.join(" · ")}` : label).slice(0, 240),
       { ...combatantUndo(tokenId, before), activeTokenId: current.activeTokenId ?? null },
       tokenId,
-    ),
-    messages,
-  };
+    );
+  if (damageDetails.length) committed.history.at(-1)!.damageDetails = damageDetails;
+  return { state: committed, messages };
 }
 
 export function undoLastAction(current: RulebearSceneState): RulebearSceneState {

@@ -7,7 +7,7 @@ Extensão do [Owlbear Rodeo](https://www.owlbear.rodeo/) para mestres e jogadore
 1. No perfil do Owlbear, abra **Extensions → Add Extension**.
 2. Cole [o link de instalação](https://emillysolveranjos.github.io/ProjetosRpg/manifest.json).
 3. Na sala, habilite **Rulebear** em **Extensions** e abra o botão do urso.
-4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.3.0.
+4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.4.0.
 
 Sem servidor local, conta GitHub ou login adicional. Distribuição por link; não está na loja do Owlbear. Desative instalações locais antigas na sala para não executar duas versões sobre o mesmo encontro.
 
@@ -30,17 +30,17 @@ Clique em **Iniciativa** no cartão para digitar o valor. O mestre usa **⋯ do 
 
 Novos combatentes entram no fim. Remover o ativo pausa o encontro; o mestre escolhe em qual token retomar. **Undo**, exclusivo dos mestres, restaura a última operação e seus efeitos sobre HP, condições, ordem e rodada.
 
-Dano aceita números e dados, como `2d6+3`, até 12 tipos escolhidos por chips e reduções em sequência. O dano pode levar o HP abaixo de zero. Cura soma a partir do valor negativo e para no HP máximo; se o token já tiver sobrevida, a cura preserva esse valor. Iniciativa não possui rolagem nesta versão.
+Dano aceita até 12 componentes, como `10 Físico + 1d6 Fogo`. Cada componente resolve separadamente imunidade e RD. **Ignorar imunidade** permite que aquela parcela atravesse imunidades; **Ignorar RD** aceita um número ou dados, como `3` ou `1d6+2`, e desconta o resultado da RD total aplicável. As duas opções podem ser usadas juntas por qualquer jogador autorizado a aplicar dano. O dano pode levar o HP abaixo de zero. Cura soma a partir do valor negativo e para no HP máximo; se o token já tiver sobrevida, a cura preserva esse valor. Iniciativa não possui rolagem nesta versão.
 
 ## Biblioteca da cena
 
 Abra **📚 Biblioteca** no rodapé do painel do mestre. As três abas guardam regras reutilizáveis na cena:
 
-- **Condições** reúne stacks, duração e efeitos automáticos. Efeitos de dano podem selecionar tipos e ignorar defesas quando configurados pelo mestre.
+- **Condições** reúne stacks, duração e efeitos automáticos. Efeitos de dano usam os mesmos componentes, imunidades e expressões de penetração dos ataques manuais.
 - **Tipos de dano** começa com Físico, Fogo, Gelo, Elétrico, Veneno, Psíquico e Mágico. Você pode editar cores e descrições ou criar tipos próprios. Um tipo em uso só pode ser excluído depois que suas referências forem removidas.
-- **Presets de defesa** guarda nome, redução fixa e tipos afetados. Uma defesa sem tipos é universal.
+- **Presets de defesa** guarda reduções fixas ou imunidades e seus tipos afetados. Uma defesa sem tipos é universal.
 
-Em **Defesas** no cartão do token, escolha um preset e clique em **Adicionar ao token**, ou crie uma defesa manual. A cópia aplicada pertence ao token: editar ou excluir o preset original não a altera. As reduções são cumulativas, processadas de cima para baixo, e cada defesa é aplicada uma única vez por ataque mesmo quando vários tipos correspondem. **Salvar como preset** transforma uma defesa do token em um novo modelo reutilizável.
+Em **Defesas** no cartão do token, escolha um preset e clique em **Adicionar ao token**, ou crie uma defesa manual. A cópia aplicada pertence ao token: editar ou excluir o preset original não a altera. Imunidade zera apenas os componentes cobertos; as RDs correspondentes são somadas uma vez por componente antes da penetração. **Salvar como preset** transforma uma defesa do token em um novo modelo reutilizável.
 
 ## Painel compacto
 
@@ -77,9 +77,9 @@ Os dados originais são preservados e não há sincronização contínua. Depois
 
 O background elege um mestre coordenador e processa comandos em sequência. Durante reconexões há uma breve espera. Se o estado mudou, a ação é rejeitada para evitar sobrescrever alterações. Se uma confirmação não chegar, confira os valores antes de tentar de novo: a Rulebear não repete a ação automaticamente.
 
-Cenas v1, v2, v3 e v4 são migradas para v5 por um mestre, preservando HP, defesas, condições, histórico, turno, marcadores e Undo compatível. Categorias antigas equivalentes reutilizam os sete tipos iniciais, sem diferenciar maiúsculas ou acentos; categorias próprias viram tipos editáveis de cor neutra. Permissões antigas habilitadas são atribuídas aos responsáveis atuais. A antiga edição da barra de HP concede ajuste do HP atual aos responsáveis; o ajuste do máximo começa bloqueado. Cenas v1 iniciam todas as ações bloqueadas. Antes da conversão, o navegador do mestre guarda um backup. Exporte-o pela engrenagem em **Baixar backups anteriores à migração**; esse arquivo contém os dados originais para recuperação. Não limpe o armazenamento do navegador antes de exportar. Se não puder salvar o backup, a migração não grava a cena. Todos os participantes devem recarregar a Rulebear após a atualização.
+Cenas v1 a v5 são migradas para v6 por um mestre, preservando HP, defesas, condições, histórico, turno, marcadores e Undo compatível. Defesas anteriores tornam-se reduções fixas. A antiga opção `Ignorar defesas` em condições passa a significar somente `Ignorar imunidade`, sem conceder penetração de RD. Componentes antigos com vários tipos permanecem híbridos e só são bloqueados quando imunidades cobrem todos os tipos. Categorias antigas equivalentes reutilizam os sete tipos iniciais; categorias próprias viram tipos editáveis de cor neutra. Antes da conversão, o navegador do mestre guarda um backup. Exporte-o pela engrenagem em **Baixar backups anteriores à migração**. Todos os participantes devem recarregar a Rulebear após a atualização.
 
-Dados inválidos ou versões futuras não são substituídos. Limites: 50 combatentes, 12 marcadores por token, 25 definições de condição, 50 tipos de dano, 50 presets de defesa, 12 tipos por ataque/defesa/efeito, 25 modelos e 50 registros de histórico.
+Dados inválidos ou versões futuras não são substituídos. Limites: 50 combatentes, 12 marcadores por token, 25 definições de condição, 50 tipos de dano, 50 presets de defesa, 12 componentes por ataque ou condição, 12 tipos por defesa, 25 modelos e 50 registros de histórico.
 
 ## Desenvolvimento e publicação
 

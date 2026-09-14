@@ -1,6 +1,6 @@
 ---
 title: Rulebear
-description: Controle HP, dano, cura, reduções e condições vinculados aos tokens da sua cena.
+description: Controle HP, dano misto, cura, imunidades, RD e condições nos tokens da sua cena.
 author: Zero
 image: https://emillysolveranjos.github.io/ProjetosRpg/store/hero.svg
 icon: https://emillysolveranjos.github.io/ProjetosRpg/icon.svg
@@ -12,7 +12,7 @@ learn-more: https://github.com/emillysolveranjos/ProjetosRpg
 
 # Rulebear
 
-Rulebear mantém as contas do combate perto do mapa. Adicione um token de personagem, informe o HP e aplique dano, cura, reduções e condições pelo painel privado do GM.
+Rulebear mantém as contas do combate perto do mapa. Adicione um token, informe o HP e aplique dano misto, cura, imunidades, RD e condições com acesso configurável para cada jogador.
 
 ## Feita para a cena
 
@@ -20,9 +20,9 @@ Cada combatente corresponde a um token. Nomes e imagens acompanham o mapa automa
 
 ## Regras rápidas
 
-- dano fixo ou em dados como `2d6+3`;
+- ataques com até 12 componentes fixos ou em dados;
 - biblioteca de tipos de dano, condições e presets de defesa;
-- reduções universais ou por até 12 tipos, aplicadas em ordem;
+- imunidades e RDs universais ou por tipo, com penetração configurável;
 - condições com stacks e duração;
 - dano ou cura no início e fim do turno;
 - histórico compacto e Undo.

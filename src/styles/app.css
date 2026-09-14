@@ -131,9 +131,18 @@ textarea { min-height: 76px; resize: vertical; }
 .detail-tabs .button b { margin-left: 4px; min-width: 17px; border-radius: 9px; background: var(--panel-2); font-size: 9px; }
 .damage-details { padding: 6px 0; }
 .damage-details .damage-type-picker { margin-top: 6px; }
+.damage-components { min-width: 0; display: grid; gap: 8px; }
+.damage-components > header { display: grid; gap: 3px; }
+.damage-components > header small { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.damage-component { min-width: 0; display: grid; gap: 8px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); }
+.damage-component legend { padding: 0 5px; color: var(--amber); font-size: 10px; font-weight: 700; }
+.component-grid { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .85fr); gap: 6px; }
+.component-options { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: 6px; }
+.component-grid label, .component-options label { min-width: 0; }
+.component-options .check { min-height: 37px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
 
 @media (max-width: 350px) {
-  .form-grid, .effect-grid, .inline-action { grid-template-columns: 1fr; }
+  .form-grid, .effect-grid, .inline-action, .component-grid, .component-options { grid-template-columns: 1fr; }
   .library-card { grid-template-columns: auto minmax(0, 1fr); }
   .library-card .card-menu { grid-column: 1 / -1; }
   .card-menu .button { flex: 1; }
@@ -166,3 +175,5 @@ button:disabled { opacity:.4; cursor:default }
 .card-actions { display:flex; flex-wrap:wrap }
 .card-actions > button { flex:1; min-width:75px }
 .dialog .button { margin-top:4px }
+.damage-history { margin: 8px 0; padding: 8px; border-left: 2px solid var(--amber); overflow-wrap: anywhere; }
+.history-list li > div { min-width: 0; }
