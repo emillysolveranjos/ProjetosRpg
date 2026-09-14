@@ -1,9 +1,9 @@
 {
   "name": "rulebear",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.3.0",
   "type": "module",
-  "description": "Extensão nativa do Owlbear Rodeo para automatizar dano, cura, resistências e condições.",
+  "description": "Extensão nativa do Owlbear Rodeo para iniciativa, dano, cura, condições e bibliotecas de combate.",
   "author": "Zero",
   "license": "MIT",
   "packageManager": "npm@11.9.0",

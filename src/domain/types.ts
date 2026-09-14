@@ -5,7 +5,7 @@ export interface DamageReduction {
   id: string;
   label: string;
   amount: number;
-  categories: string[];
+  damageTypeIds: string[];
 }
 
 export interface ConditionEffect {
@@ -13,7 +13,7 @@ export interface ConditionEffect {
   trigger: Trigger;
   kind: EffectKind;
   expression: string;
-  categories: string[];
+  damageTypeIds: string[];
   multiplyByStacks: boolean;
   bypassReductions: boolean;
 }
@@ -59,7 +59,7 @@ export type HistoryKind =
   | "CONDITION_REMOVED"
   | "DEFINITION_CHANGED"
   | "TURN_START"
-  | "TURN_END" | "ENCOUNTER_CHANGED" | "MARKER_CHANGED" | "ACCESS_CHANGED";
+  | "TURN_END" | "ENCOUNTER_CHANGED" | "MARKER_CHANGED" | "ACCESS_CHANGED" | "LIBRARY_CHANGED";
 
 export interface HistoryEntry {
   id: string;
@@ -76,11 +76,13 @@ export interface UndoRecord {
   snapshot?: EncounterSnapshot;
   combatants?: Record<string, CombatantState | null>;
   conditionDefinitions?: ConditionDefinition[];
+  damageTypes?: DamageTypeDefinition[];
+  defensePresets?: DefensePreset[];
   activeTokenId?: string | null;
 }
 
 export interface RulebearSceneState {
-  schemaVersion: 4;
+  schemaVersion: 5;
   sceneId: string;
   encounter: Encounter;
   templates: MarkerTemplate[];
@@ -88,6 +90,8 @@ export interface RulebearSceneState {
   revision: number;
   combatants: Record<string, CombatantState>;
   conditionDefinitions: ConditionDefinition[];
+  damageTypes: DamageTypeDefinition[];
+  defensePresets: DefensePreset[];
   activeTokenId?: string;
   history: HistoryEntry[];
   undo?: UndoRecord;
@@ -114,6 +118,20 @@ export interface DamageResult {
 export interface TriggerResult {
   state: RulebearSceneState;
   messages: string[];
+}
+
+export interface DamageTypeDefinition {
+  id: string;
+  name: string;
+  color: string;
+  description?: string;
+}
+
+export interface DefensePreset {
+  id: string;
+  name: string;
+  amount: number;
+  damageTypeIds: string[];
 }
 
 
@@ -147,6 +165,8 @@ export interface Encounter { order: string[]; round: number; started: boolean; p
 export interface EncounterSnapshot {
   combatants: Record<string, CombatantState>;
   conditionDefinitions: ConditionDefinition[];
+  damageTypes: DamageTypeDefinition[];
+  defensePresets: DefensePreset[];
   activeTokenId?: string;
   encounter: Encounter;
   templates: MarkerTemplate[];

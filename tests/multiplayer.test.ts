@@ -29,7 +29,7 @@ function oldState(version: 2 | 3) {
 describe("migração e validação", () => {
   it("preserva estado v1 e inicia acesso restrito, sem modificar a origem", () => {
     const original = legacy(), before = structuredClone(original), result = migrateLegacyState(original);
-    expect(original).toEqual(before); expect(result.schemaVersion).toBe(4); expect(result.combatants.a!.currentHp).toBe(10);
+    expect(original).toEqual(before); expect(result.schemaVersion).toBe(5); expect(result.combatants.a!.currentHp).toBe(10);
     expect(result.activeTokenId).toBe("a"); expect(result.encounter.round).toBe(1);
     expect(visibleCombatant(result.combatants.a!, p)).toBe(false);
     expect(result.combatants.a!.initiative).toBeNull();
@@ -38,10 +38,27 @@ describe("migração e validação", () => {
     const source = oldState(2);
     const before = structuredClone(source), result = migrateLegacyState(source);
     expect(source).toEqual(before);
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.revision).toBe(before.revision + 1);
     expect(result.combatants.a!.currentHp).toBe(10);
     expect(result.combatants.a!.settings.permissions.adjustMaximumHp).toEqual([]);
+  });
+  it("migra categorias v4 para IDs compartilhados, incluindo condições e Undo", () => {
+    const current = scene();
+    const source = structuredClone(current) as unknown as Record<string, unknown>;
+    source.schemaVersion = 4;
+    delete source.damageTypes; delete source.defensePresets;
+    const combatants = source.combatants as Record<string, { reductions: unknown[] }>;
+    combatants.a!.reductions = [{ id: "fire", label: "Resistência", amount: 2, categories: ["FOGO", "Etéreo"] }];
+    source.conditionDefinitions = [{ id: "burn", name: "Queimando", maximumStacks: 1, effects: [{ id: "tick", trigger: "TURN_START", kind: "DAMAGE", expression: "1", categories: ["fogo"], multiplyByStacks: false, bypassReductions: false }] }];
+    source.undo = { historyId: "undo", snapshot: { combatants: structuredClone(combatants), conditionDefinitions: structuredClone(source.conditionDefinitions), encounter: structuredClone(source.encounter), templates: structuredClone(source.templates) } };
+    const migrated = migrateLegacyState(source);
+    const fireId = migrated.damageTypes.find((type) => type.name === "Fogo")!.id;
+    const customId = migrated.damageTypes.find((type) => type.name === "Etéreo")!.id;
+    expect(migrated.combatants.a!.reductions[0]!.damageTypeIds).toEqual([fireId, customId]);
+    expect(migrated.conditionDefinitions[0]!.effects[0]!.damageTypeIds).toEqual([fireId]);
+    expect(migrated.undo!.snapshot!.combatants.a!.reductions[0]!.damageTypeIds).toEqual([fireId, customId]);
+    expect(migrated.damageTypes.find((type) => type.id === customId)?.color).toBe("#64748b");
   });
   it("não interpreta versões futuras ou HP inválido como cena vazia", () => {
     expect(() => migrateLegacyState({ ...legacy(), schemaVersion: 99 })).toThrow();
@@ -74,7 +91,7 @@ describe("permissões e superfícies", () => {
     c.settings.visibility.identity.mode = "ALL";
     c.settings.permissions = { initiative: [p.id], damage: [p.id], heal: [p.id], adjustCurrentHp: [p.id], adjustMaximumHp: [p.id], conditions: [p.id], endTurn: [p.id] };
     s.conditionDefinitions = [{ id: "poison", name: "Veneno", maximumStacks: 3, effects: [] }];
-    s = executeCommand(s, { type: "damage", tokenId: "a", expression: "2", categories: [], bypass: false }, p);
+    s = executeCommand(s, { type: "damage", tokenId: "a", expression: "2", damageTypeIds: [], bypass: false }, p);
     s = executeCommand(s, { type: "heal", tokenId: "a", amount: 1 }, p);
     s = executeCommand(s, { type: "hpAdjust", tokenId: "a", target: "CURRENT", expression: "+4" }, p);
     s = executeCommand(s, { type: "hpAdjust", tokenId: "a", target: "MAXIMUM", expression: "+5" }, p);
@@ -86,7 +103,7 @@ describe("permissões e superfícies", () => {
     s = executeCommand(s, { type: "conditionByDefinition", tokenId: "a", definitionId: "poison", operation: "DECREASE" }, p);
     s = executeCommand(s, { type: "conditionByDefinition", tokenId: "a", definitionId: "poison", operation: "REMOVE" }, p);
     expect(s.combatants.a!.conditions).toEqual([]);
-    expect(() => executeCommand(s, { type: "damage", tokenId: "a", expression: "1", categories: [], bypass: false }, other)).toThrow("permissão");
+    expect(() => executeCommand(s, { type: "damage", tokenId: "a", expression: "1", damageTypeIds: [], bypass: false }, other)).toThrow("permissão");
     expect(() => executeCommand(s, { type: "initiative", tokenId: "a", value: 9 }, p)).toThrow("permissão");
     s.combatants.a!.settings.owners = [p.id];
     expect(executeCommand(s, { type: "initiative", tokenId: "a", value: 9 }, p).combatants.a!.initiative).toBe(9);
@@ -97,7 +114,7 @@ describe("permissões e superfícies", () => {
     c.markers[0]!.audience.mode = "GM"; c.markers[0]!.display = "HIDDEN";
     c.settings.permissions.damage = [p.id]; c.settings.permissions.conditions = [p.id];
     s.conditionDefinitions = [{ id: "secret", name: "Segredo", maximumStacks: 2, effects: [] }];
-    s = executeCommand(s, { type: "damage", tokenId: "a", expression: "3", categories: [], bypass: false }, p);
+    s = executeCommand(s, { type: "damage", tokenId: "a", expression: "3", damageTypeIds: [], bypass: false }, p);
     s = executeCommand(s, { type: "condition", tokenId: "a", definitionId: "secret" }, p);
     expect(s.combatants.a!.currentHp).toBe(7);
     expect(markerVisible(s.combatants.a!.markers[0]!, s.combatants.a!, p)).toBe(false);
@@ -141,8 +158,8 @@ describe("iniciativa e Undo atômico", () => {
   });
   it("aplica efeitos de fim e início uma vez; Undo restaura ambos e rodada", () => {
     let s = scene();
-    s = saveConditionDefinition(s, { id: "poison", name: "Veneno", maximumStacks: 1, effects: [{ id: "x", trigger: "TURN_END", kind: "DAMAGE", expression: "2", categories: [], multiplyByStacks: false, bypassReductions: false }] });
-    s = saveConditionDefinition(s, { id: "regen", name: "Regeneração", maximumStacks: 1, duration: { ticks: 2, decrementOn: "TURN_START" }, effects: [{ id: "y", trigger: "TURN_START", kind: "HEAL", expression: "1", categories: [], multiplyByStacks: false, bypassReductions: false }] });
+    s = saveConditionDefinition(s, { id: "poison", name: "Veneno", maximumStacks: 1, effects: [{ id: "x", trigger: "TURN_END", kind: "DAMAGE", expression: "2", damageTypeIds: [], multiplyByStacks: false, bypassReductions: false }] });
+    s = saveConditionDefinition(s, { id: "regen", name: "Regeneração", maximumStacks: 1, duration: { ticks: 2, decrementOn: "TURN_START" }, effects: [{ id: "y", trigger: "TURN_START", kind: "HEAL", expression: "1", damageTypeIds: [], multiplyByStacks: false, bypassReductions: false }] });
     s = applyCondition(s, "a", "poison"); s = applyCondition(s, "b", "regen");
     s = executeCommand(s, { type: "start" }, gm); const before = structuredClone(s);
     s = executeCommand(s, { type: "advance" }, gm);
@@ -176,7 +193,7 @@ describe("recursos e importação", () => {
     let s = scene();
     s = executeCommand(s, { type: "markerValue", tokenId: "a", markerId: "hp", expression: "+999" }, gm);
     expect(s.combatants.a!.currentHp).toBe(1009);
-    s = executeCommand(s, { type: "damage", tokenId: "a", expression: "3", categories: [], bypass: false }, gm);
+    s = executeCommand(s, { type: "damage", tokenId: "a", expression: "3", damageTypeIds: [], bypass: false }, gm);
     expect(markerText(s.combatants.a!.markers[0]!, s.combatants.a!, gm)).toBe("1006/20");
     expect(s.combatants.a!.markers[0]!.value).toBe(0);
     const undone = executeCommand(s, { type: "undo" }, gm);

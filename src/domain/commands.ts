@@ -1,11 +1,11 @@
 import * as engine from "./engine";
 import { markerEditable, permitted } from "./access";
 import { parseSceneState } from "../state/schema";
-import type { CombatantSettings, ConditionDefinition, DamageReduction, Marker, MarkerTemplate, Participant, RulebearSceneState, EncounterSnapshot } from "./types";
+import type { CombatantSettings, ConditionDefinition, DamageReduction, DamageTypeDefinition, DefensePreset, Marker, MarkerTemplate, Participant, RulebearSceneState, EncounterSnapshot } from "./types";
 export type Command =
   | { type: "add"; tokenId: string; currentHp: number; maximumHp: number }
   | { type: "remove"; tokenId: string }
-  | { type: "damage"; tokenId: string; expression: string; categories: string[]; bypass: boolean }
+  | { type: "damage"; tokenId: string; expression: string; damageTypeIds: string[]; bypass: boolean }
   | { type: "heal"; tokenId: string; amount: number }
   | { type: "hpAdjust"; tokenId: string; target: "CURRENT" | "MAXIMUM"; expression: string }
   | { type: "reductions"; tokenId: string; reductions: DamageReduction[] }
@@ -15,6 +15,11 @@ export type Command =
   | { type: "conditionByDefinition"; tokenId: string; definitionId: string; operation: "INCREASE" | "DECREASE" | "REMOVE" }
   | { type: "saveDefinition"; definition: ConditionDefinition }
   | { type: "deleteDefinition"; definitionId: string }
+  | { type: "saveDamageType"; definition: DamageTypeDefinition }
+  | { type: "deleteDamageType"; damageTypeId: string }
+  | { type: "saveDefensePreset"; preset: DefensePreset }
+  | { type: "deleteDefensePreset"; presetId: string }
+  | { type: "applyDefensePreset"; tokenId: string; presetId: string }
   | { type: "initiative"; tokenId: string; value: number | null }
   | { type: "order"; order: string[] }
   | { type: "sort" } | { type: "start"; tokenId?: string } | { type: "advance" } | { type: "stop" }
@@ -23,7 +28,7 @@ export type Command =
   | { type: "markerValue"; tokenId: string; markerId: string; expression?: string; checked?: boolean }
   | { type: "template"; template: MarkerTemplate } | { type: "deleteTemplate"; templateId: string }
   | { type: "prune"; tokenIds: string[] } | { type: "undo" };
-export interface CommandEnvelope { protocol: 4; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
+export interface CommandEnvelope { protocol: 5; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
 export function adjustValue(current: number, expression: string): number {
   const match = /^\s*(=|\+|-|\*|\/)?\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(expression);
   if (!match) throw new Error("Use um número, =valor, +valor, -valor, *valor ou /valor.");
@@ -34,7 +39,7 @@ export function adjustValue(current: number, expression: string): number {
   return next;
 }
 function snapshot(s: RulebearSceneState): EncounterSnapshot {
-  return structuredClone({ combatants: s.combatants, conditionDefinitions: s.conditionDefinitions, activeTokenId: s.activeTokenId, encounter: s.encounter, templates: s.templates });
+  return structuredClone({ combatants: s.combatants, conditionDefinitions: s.conditionDefinitions, damageTypes: s.damageTypes, defensePresets: s.defensePresets, activeTokenId: s.activeTokenId, encounter: s.encounter, templates: s.templates });
 }
 export function authorize(state: RulebearSceneState, command: Command, actor: Participant) {
   if (actor.role === "GM") return;
@@ -61,7 +66,7 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
   switch (command.type) {
     case "add": next = engine.addCombatant(next, command.tokenId, command.currentHp, command.maximumHp); break;
     case "remove": next = engine.removeCombatant(next, command.tokenId); break;
-    case "damage": next = engine.applyDamage(next, command.tokenId, command.expression, command.categories, actor.role === "GM" && command.bypass).state; break;
+    case "damage": next = engine.applyDamage(next, command.tokenId, command.expression, command.damageTypeIds, actor.role === "GM" && command.bypass).state; break;
     case "heal": next = engine.applyHealing(next, command.tokenId, command.amount).state; break;
     case "hpAdjust": {
       const value = adjustValue(command.target === "CURRENT" ? c!.currentHp : c!.maximumHp, command.expression);
@@ -81,6 +86,11 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
     }
     case "saveDefinition": next = engine.saveConditionDefinition(next, command.definition); break;
     case "deleteDefinition": next = engine.deleteConditionDefinition(next, command.definitionId); break;
+    case "saveDamageType": next = engine.saveDamageType(next, command.definition); break;
+    case "deleteDamageType": next = engine.deleteDamageType(next, command.damageTypeId); break;
+    case "saveDefensePreset": next = engine.saveDefensePreset(next, command.preset); break;
+    case "deleteDefensePreset": next = engine.deleteDefensePreset(next, command.presetId); break;
+    case "applyDefensePreset": next = engine.applyDefensePreset(next, command.tokenId, command.presetId); break;
     case "initiative": c!.initiative = command.value; break;
     case "settings": c!.settings = structuredClone(command.settings); break;
     case "markers":
@@ -158,7 +168,7 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
     default: throw new Error("Comando desconhecido.");
   }
   const added = next.history.slice(current.history.length < 50 ? current.history.length : 49);
-  const summary = command.type === "advance" ? "Turno avançado; efeitos de fim e início aplicados." : added[0]?.id !== current.history.at(-1)?.id && next.revision > current.revision ? added.map((e) => e.summary).join(" · ").slice(0, 240) : command.type === "settings" ? "Permissões atualizadas." : command.type === "markerValue" || command.type === "markers" ? "Marcadores atualizados." : command.type === "hpAdjust" ? "HP ajustado." : "Encontro atualizado.";
+  const summary = command.type === "advance" ? "Turno avançado; efeitos de fim e início aplicados." : added[0]?.id !== current.history.at(-1)?.id && next.revision > current.revision ? added.map((e) => e.summary).join(" · ").slice(0, 240) : command.type === "settings" ? "Permissões atualizadas." : command.type === "markerValue" || command.type === "markers" ? "Marcadores atualizados." : command.type === "hpAdjust" ? "HP ajustado." : command.type.includes("DamageType") || command.type.includes("DefensePreset") ? "Biblioteca atualizada." : "Encontro atualizado.";
   const historyId = crypto.randomUUID();
   next.history = [...current.history, { id: historyId, occurredAt: new Date().toISOString(), kind: "ENCOUNTER_CHANGED" as const, summary, tokenId: "tokenId" in command ? command.tokenId : current.activeTokenId }].slice(-50);
   next.undo = { historyId, snapshot: snapshot(current) };

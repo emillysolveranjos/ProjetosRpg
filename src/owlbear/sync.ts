@@ -3,7 +3,7 @@ import type { Participant, RulebearSceneState } from "../domain/types";
 import { executeCommand, type Command, type CommandEnvelope } from "../domain/commands";
 import { createEmptyState, isLegacyState, migrateLegacyState, parseSceneState } from "../state/schema";
 export const CHANNEL = "io.github.samuelsanjos.rulebear/v2";
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 export interface Peer { connectionId: string; session: string; seen: number; ready: boolean; protocol: number }
 export function elect(peers: Peer[], participants: Participant[], now = Date.now()): Peer | undefined {
   return peers.filter((p) => p.protocol === PROTOCOL_VERSION && now - p.seen < 6500 && participants.some((u) => u.connectionId === p.connectionId && u.role === "GM")).sort((a, b) => a.connectionId.localeCompare(b.connectionId))[0];

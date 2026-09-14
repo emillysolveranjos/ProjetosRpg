@@ -77,14 +77,14 @@ describe("coordenação multiplayer", () => {
     const stop = startCoordinator(gm); await vi.advanceTimersByTimeAsync(6500);
     expect(n.value).toEqual(legacy); expect(n.writes).toBe(0);
     n.failBackup = false; await vi.advanceTimersByTimeAsync(2000);
-    expect(n.backups).toEqual([legacy]); expect(parseSceneState(n.value).schemaVersion).toBe(4);
+    expect(n.backups).toEqual([legacy]); expect(parseSceneState(n.value).schemaVersion).toBe(5);
     stop();
   });
   it("rejeita protocolo antigo com orientação para recarregar", async () => {
     const { gm, p, envelope } = setup(), processor = new CommandProcessor(gm, () => true);
     await expect(processor.process({ ...envelope("old"), protocol: 2 } as unknown as CommandEnvelope, p.self)).rejects.toThrow("Recarregue");
   });
-  it("salva backup antes de migrar cenas antigas para v4", async () => {
+  it("salva backup antes de migrar cenas antigas para v5", async () => {
     vi.useFakeTimers();
     const n = new Network(), gm = n.join("gm", "GM");
     const current = createEmptyState();
@@ -92,7 +92,7 @@ describe("coordenação multiplayer", () => {
     n.value = v2;
     const stop = startCoordinator(gm); await vi.advanceTimersByTimeAsync(6500);
     expect(n.backups).toEqual([v2]);
-    expect(parseSceneState(n.value).schemaVersion).toBe(4);
+    expect(parseSceneState(n.value).schemaVersion).toBe(5);
     stop();
   });
   it("não repete automaticamente uma ação sem confirmação", async () => {

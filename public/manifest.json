@@ -1,8 +1,8 @@
 {
   "name": "Rulebear",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "manifest_version": 1,
-  "description": "Iniciativa, marcadores nos tokens e controles para mestres e jogadores.",
+  "description": "Iniciativa, marcadores, tipos de dano, defesas e controles para mestres e jogadores.",
   "author": "Zero",
   "icon": "/icon.svg",
   "homepage_url": "https://github.com/emillysolveranjos/ProjetosRpg",

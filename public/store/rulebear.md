@@ -21,7 +21,8 @@ Cada combatente corresponde a um token. Nomes e imagens acompanham o mapa automa
 ## Regras rápidas
 
 - dano fixo ou em dados como `2d6+3`;
-- reduções universais ou por categoria;
+- biblioteca de tipos de dano, condições e presets de defesa;
+- reduções universais ou por até 12 tipos, aplicadas em ordem;
 - condições com stacks e duração;
 - dano ou cura no início e fim do turno;
 - histórico compacto e Undo.

@@ -25,7 +25,7 @@ describe("painel de jogadores", () => {
     expect(screen.queryByRole("button", { name: "Cura" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Ações de HP: 45%" }));
     expect(screen.getByRole("button", { name: "Cura" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Aplicar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Aplicar cura" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Dano" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Acesso" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "+ Token selecionado" })).not.toBeInTheDocument();
@@ -79,12 +79,12 @@ describe("painel de jogadores", () => {
   it("salva exceções independentes por propriedade e token sem alterar a cena", async () => {
     const { n, p } = setup(); render(<App gateway={p} />); await screen.findByText("1 combatente");
     fireEvent.click(screen.getByRole("button", { name: "Detalhes de A" }));
-    fireEvent.change(screen.getByLabelText("Posição vertical neste token"), { target: { value: "TOP" } });
-    fireEvent.change(screen.getByLabelText("Alinhamento neste token"), { target: { value: "LEFT" } });
-    fireEvent.change(screen.getByLabelText("Tamanho neste token"), { target: { value: "SMALL" } });
+    fireEvent.change(screen.getByLabelText("Posição vertical"), { target: { value: "TOP" } });
+    fireEvent.change(screen.getByLabelText("Alinhamento"), { target: { value: "LEFT" } });
+    fireEvent.change(screen.getByLabelText("Tamanho"), { target: { value: "SMALL" } });
     const preferenceKey = `${useAppStore.getState().state.sceneId}/a`;
     expect(useAppStore.getState().preferences.overrides[preferenceKey]).toEqual({ position: "TOP", horizontal: "LEFT", size: "SMALL" });
-    fireEvent.change(screen.getByLabelText("Alinhamento neste token"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Alinhamento"), { target: { value: "" } });
     expect(useAppStore.getState().preferences.overrides[preferenceKey]).toEqual({ position: "TOP", size: "SMALL" });
     expect(n.writes).toBe(0);
   });
@@ -116,7 +116,7 @@ describe("painel de jogadores", () => {
     s.conditionDefinitions = [{ id: "secret", name: "Veneno", maximumStacks: 3, effects: [] }];
     n.value = s; render(<App gateway={p} />);
     fireEvent.click(await screen.findByRole("button", { name: "Detalhes de A" }));
-    fireEvent.click(screen.getByRole("button", { name: "Condições" }));
+    fireEvent.click(screen.getByRole("button", { name: /Condições/ }));
     expect(screen.getByLabelText("Operação")).toBeInTheDocument();
     expect(screen.getByText(/condições aplicadas estão ocultas/i)).toBeInTheDocument();
     expect(screen.queryByText(/Veneno ·/)).not.toBeInTheDocument();
@@ -125,12 +125,23 @@ describe("painel de jogadores", () => {
     const { gm } = setup(); render(<App gateway={gm} />);
     await screen.findByText("2 combatentes");
     fireEvent.click(screen.getByRole("button", { name: "Detalhes de A" }));
-    fireEvent.click(screen.getByRole("button", { name: "Acesso" }));
+    fireEvent.click(screen.getByRole("button", { name: "⚙ Acesso" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Permissões por jogador")).toBeInTheDocument();
     expect(within(dialog).getAllByLabelText("Aplicar dano")).toHaveLength(2);
     expect(within(dialog).getAllByLabelText("Ajustar HP atual")).toHaveLength(2);
     expect(within(dialog).getAllByLabelText("Ajustar HP máximo")).toHaveLength(2);
     expect(within(dialog).queryByText("Editar HP")).not.toBeInTheDocument();
+  });
+  it("abre a Biblioteca com três abas e os tipos iniciais", async () => {
+    const { gm } = setup(); render(<App gateway={gm} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Biblioteca/ }));
+    const dialog = screen.getByRole("dialog", { name: "Biblioteca da cena" });
+    expect(within(dialog).getByRole("button", { name: /Condições/ })).toHaveAttribute("aria-current", "page");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Tipos de dano/ }));
+    expect(within(dialog).getByText("Físico")).toBeInTheDocument();
+    expect(within(dialog).getByText("Mágico")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Presets de defesa/ }));
+    expect(within(dialog).getByText("Nenhum preset")).toBeInTheDocument();
   });
 });

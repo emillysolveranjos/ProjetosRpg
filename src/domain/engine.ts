@@ -1,12 +1,14 @@
-import { defaultMarker, defaultSettings } from "./defaults";
+import { defaultMarker, defaultSettings, normalizedDefinitionName } from "./defaults";
 import { MAX_COMBATANTS, MAX_DEFINITIONS, MAX_HISTORY } from "../config";
 import { evaluateExpression, type DieRoller } from "./dice";
 import type {
   AppliedCondition,
   CombatantState,
   ConditionDefinition,
+  DamageTypeDefinition,
   DamageReduction,
   DamageResult,
+  DefensePreset,
   HistoryEntry,
   HistoryKind,
   RulebearSceneState,
@@ -29,8 +31,15 @@ export function assertMaximumHp(value: number): void {
   }
 }
 
-function normalizeCategories(categories: string[]): string[] {
-  return [...new Set(categories.map((category) => category.trim().toLocaleUpperCase("pt-BR")).filter(Boolean))];
+function uniqueIds(ids: string[]): string[] {
+  return [...new Set(ids.filter(Boolean))];
+}
+
+function validateDamageTypeIds(state: RulebearSceneState, ids: string[]): string[] {
+  const unique = uniqueIds(ids);
+  if (unique.length > 12) throw new Error("Selecione no máximo 12 tipos de dano.");
+  if (unique.some((id) => !state.damageTypes.some((type) => type.id === id))) throw new Error("Um tipo de dano selecionado não existe mais.");
+  return unique;
 }
 
 function getCombatant(state: RulebearSceneState, tokenId: string): CombatantState {
@@ -103,7 +112,7 @@ export function removeCombatant(current: RulebearSceneState, tokenId: string): R
 export function resolveDamage(
   combatant: CombatantState,
   expression: string,
-  categories: string[],
+  damageTypeIds: string[],
   bypassReductions: boolean,
   multiplier = 1,
   rollDie?: DieRoller,
@@ -112,13 +121,13 @@ export function resolveDamage(
   const rolled = evaluateExpression(expression, rollDie);
   const rawAmount = rolled.total * multiplier;
   if (!Number.isSafeInteger(rawAmount) || rawAmount <= 0) throw new Error("O dano precisa resultar em um valor positivo.");
-  const normalized = normalizeCategories(categories);
+  const selected = uniqueIds(damageTypeIds);
   let remaining = rawAmount;
   let reducedBy = 0;
   if (!bypassReductions) {
     for (const reduction of combatant.reductions) {
-      const applies = reduction.categories.length === 0
-        || reduction.categories.some((category) => normalized.includes(category.toLocaleUpperCase("pt-BR")));
+      const applies = reduction.damageTypeIds.length === 0
+        || reduction.damageTypeIds.some((typeId) => selected.includes(typeId));
       if (!applies || remaining === 0) continue;
       const applied = Math.min(remaining, reduction.amount);
       remaining -= applied;
@@ -141,7 +150,7 @@ export function applyDamage(
   current: RulebearSceneState,
   tokenId: string,
   expression: string,
-  categories: string[] = [],
+  damageTypeIds: string[] = [],
   bypassReductions = false,
   multiplier = 1,
   rollDie?: DieRoller,
@@ -149,7 +158,8 @@ export function applyDamage(
   const before = clone(getCombatant(current, tokenId));
   const state = clone(current);
   const combatant = getCombatant(state, tokenId);
-  const result = resolveDamage(combatant, expression, categories, bypassReductions, multiplier, rollDie);
+  const selected = validateDamageTypeIds(current, damageTypeIds);
+  const result = resolveDamage(combatant, expression, selected, bypassReductions, multiplier, rollDie);
   assertHpValue(result.hpAfter);
   combatant.currentHp = result.hpAfter;
   const next = commit(
@@ -187,16 +197,112 @@ export function setReductions(
 ): RulebearSceneState {
   if (reductions.length > 24) throw new Error("Um combatente aceita no máximo 24 reduções.");
   for (const reduction of reductions) {
-    if (!reduction.label.trim() || !Number.isInteger(reduction.amount) || reduction.amount < 0) throw new Error("Redução inválida.");
+    if (!reduction.label.trim() || !Number.isInteger(reduction.amount) || reduction.amount < 0 || reduction.amount > 1_000_000) throw new Error("Redução inválida.");
+    validateDamageTypeIds(current, reduction.damageTypeIds);
   }
   const before = clone(getCombatant(current, tokenId));
   const state = clone(current);
   getCombatant(state, tokenId).reductions = reductions.map((reduction) => ({
     ...reduction,
     label: reduction.label.trim(),
-    categories: normalizeCategories(reduction.categories),
+    damageTypeIds: uniqueIds(reduction.damageTypeIds),
   }));
   return commit(state, "REDUCTION_CHANGED", "Reduções atualizadas", combatantUndo(tokenId, before), tokenId);
+}
+
+function cleanLibraryName(value: string, label: string): string {
+  const name = value.trim();
+  if (!name || name.length > 60) throw new Error(`${label} deve ter entre 1 e 60 caracteres.`);
+  return name;
+}
+
+function assertUniqueLibraryName<T extends { id: string; name: string }>(items: T[], candidate: T, label: string): void {
+  const normalized = normalizedDefinitionName(candidate.name);
+  if (items.some((item) => item.id !== candidate.id && normalizedDefinitionName(item.name) === normalized)) {
+    throw new Error(`Já existe ${label} com esse nome.`);
+  }
+}
+
+export function saveDamageType(current: RulebearSceneState, definition: DamageTypeDefinition): RulebearSceneState {
+  const index = current.damageTypes.findIndex((item) => item.id === definition.id);
+  if (index < 0 && current.damageTypes.length >= 50) throw new Error("A cena aceita no máximo 50 tipos de dano.");
+  const cleaned: DamageTypeDefinition = {
+    id: definition.id || newId(),
+    name: cleanLibraryName(definition.name, "O nome do tipo de dano"),
+    color: definition.color,
+    ...(definition.description?.trim() ? { description: definition.description.trim() } : {}),
+  };
+  if (!/^#[0-9a-fA-F]{6}$/.test(cleaned.color)) throw new Error("Escolha uma cor válida para o tipo de dano.");
+  if ((cleaned.description?.length ?? 0) > 240) throw new Error("A descrição deve ter no máximo 240 caracteres.");
+  assertUniqueLibraryName(current.damageTypes, cleaned, "um tipo de dano");
+  const state = clone(current);
+  if (index >= 0) state.damageTypes[index] = cleaned;
+  else state.damageTypes.push(cleaned);
+  return commit(state, "LIBRARY_CHANGED", index >= 0 ? `Tipo “${cleaned.name}” atualizado` : `Tipo “${cleaned.name}” criado`, {
+    damageTypes: clone(current.damageTypes),
+  });
+}
+
+export function damageTypeUsage(current: RulebearSceneState, damageTypeId: string): { defenses: number; conditions: number; presets: number } {
+  return {
+    defenses: Object.values(current.combatants).reduce((total, combatant) => total + combatant.reductions.filter((item) => item.damageTypeIds.includes(damageTypeId)).length, 0),
+    conditions: current.conditionDefinitions.reduce((total, condition) => total + condition.effects.filter((effect) => effect.damageTypeIds.includes(damageTypeId)).length, 0),
+    presets: current.defensePresets.filter((preset) => preset.damageTypeIds.includes(damageTypeId)).length,
+  };
+}
+
+export function deleteDamageType(current: RulebearSceneState, damageTypeId: string): RulebearSceneState {
+  const definition = current.damageTypes.find((item) => item.id === damageTypeId);
+  if (!definition) throw new Error("Tipo de dano não encontrado.");
+  const usage = damageTypeUsage(current, damageTypeId);
+  const references = [
+    usage.presets ? `${usage.presets} preset(s)` : "",
+    usage.defenses ? `${usage.defenses} defesa(s) de token` : "",
+    usage.conditions ? `${usage.conditions} efeito(s) de condição` : "",
+  ].filter(Boolean);
+  if (references.length) throw new Error(`“${definition.name}” ainda é usado em ${references.join(", ")}. Remova essas referências antes de excluir.`);
+  const state = clone(current);
+  state.damageTypes = state.damageTypes.filter((item) => item.id !== damageTypeId);
+  return commit(state, "LIBRARY_CHANGED", `Tipo “${definition.name}” excluído`, { damageTypes: clone(current.damageTypes) });
+}
+
+export function saveDefensePreset(current: RulebearSceneState, preset: DefensePreset): RulebearSceneState {
+  const index = current.defensePresets.findIndex((item) => item.id === preset.id);
+  if (index < 0 && current.defensePresets.length >= 50) throw new Error("A cena aceita no máximo 50 presets de defesa.");
+  const cleaned: DefensePreset = {
+    id: preset.id || newId(),
+    name: cleanLibraryName(preset.name, "O nome do preset"),
+    amount: preset.amount,
+    damageTypeIds: validateDamageTypeIds(current, preset.damageTypeIds),
+  };
+  if (!Number.isInteger(cleaned.amount) || cleaned.amount < 0 || cleaned.amount > 1_000_000) throw new Error("A redução deve ser um inteiro entre 0 e 1.000.000.");
+  assertUniqueLibraryName(current.defensePresets, cleaned, "um preset de defesa");
+  const state = clone(current);
+  if (index >= 0) state.defensePresets[index] = cleaned;
+  else state.defensePresets.push(cleaned);
+  return commit(state, "LIBRARY_CHANGED", index >= 0 ? `Preset “${cleaned.name}” atualizado` : `Preset “${cleaned.name}” criado`, {
+    defensePresets: clone(current.defensePresets),
+  });
+}
+
+export function deleteDefensePreset(current: RulebearSceneState, presetId: string): RulebearSceneState {
+  const preset = current.defensePresets.find((item) => item.id === presetId);
+  if (!preset) throw new Error("Preset de defesa não encontrado.");
+  const state = clone(current);
+  state.defensePresets = state.defensePresets.filter((item) => item.id !== presetId);
+  return commit(state, "LIBRARY_CHANGED", `Preset “${preset.name}” excluído`, { defensePresets: clone(current.defensePresets) });
+}
+
+export function applyDefensePreset(current: RulebearSceneState, tokenId: string, presetId: string): RulebearSceneState {
+  const preset = current.defensePresets.find((item) => item.id === presetId);
+  if (!preset) throw new Error("Preset de defesa não encontrado.");
+  const combatant = getCombatant(current, tokenId);
+  return setReductions(current, tokenId, [...combatant.reductions, {
+    id: newId(),
+    label: preset.name,
+    amount: preset.amount,
+    damageTypeIds: [...preset.damageTypeIds],
+  }]);
 }
 
 export function saveConditionDefinition(
@@ -206,13 +312,17 @@ export function saveConditionDefinition(
   const index = current.conditionDefinitions.findIndex((item) => item.id === definition.id);
   if (index < 0 && current.conditionDefinitions.length >= MAX_DEFINITIONS) throw new Error(`A cena aceita no máximo ${MAX_DEFINITIONS} condições.`);
   if (!definition.name.trim() || definition.maximumStacks < 1) throw new Error("Definição de condição inválida.");
-  for (const effect of definition.effects) evaluateExpression(effect.expression, () => 1);
+  for (const effect of definition.effects) {
+    evaluateExpression(effect.expression, () => 1);
+    if (effect.kind === "HEAL" && effect.damageTypeIds.length) throw new Error("Efeitos de cura não usam tipos de dano.");
+    validateDamageTypeIds(current, effect.damageTypeIds);
+  }
   const state = clone(current);
   const cleaned: ConditionDefinition = {
     ...clone(definition),
     name: definition.name.trim(),
     ...(definition.description?.trim() ? { description: definition.description.trim() } : {}),
-    effects: definition.effects.map((effect) => ({ ...effect, categories: normalizeCategories(effect.categories) })),
+    effects: definition.effects.map((effect) => ({ ...effect, damageTypeIds: uniqueIds(effect.damageTypeIds) })),
   };
   if (!definition.description?.trim()) delete cleaned.description;
   if (index >= 0) state.conditionDefinitions[index] = cleaned;
@@ -308,7 +418,7 @@ export function processTurn(
     for (const effect of definition.effects.filter((item) => item.trigger === trigger)) {
       const multiplier = effect.multiplyByStacks ? applied.stacks : 1;
       if (effect.kind === "DAMAGE") {
-        const result = resolveDamage(combatant, effect.expression, effect.categories, effect.bypassReductions, multiplier, rollDie);
+        const result = resolveDamage(combatant, effect.expression, effect.damageTypeIds, effect.bypassReductions, multiplier, rollDie);
         assertHpValue(result.hpAfter);
         combatant.currentHp = result.hpAfter;
         messages.push(`${definition.name}: ${result.finalAmount} de dano`);
@@ -364,6 +474,8 @@ export function undoLastAction(current: RulebearSceneState): RulebearSceneState 
     }
   }
   if (undo.conditionDefinitions) state.conditionDefinitions = clone(undo.conditionDefinitions);
+  if (undo.damageTypes) state.damageTypes = clone(undo.damageTypes);
+  if (undo.defensePresets) state.defensePresets = clone(undo.defensePresets);
   if (undo.activeTokenId !== undefined) {
     if (undo.activeTokenId === null) delete state.activeTokenId;
     else state.activeTokenId = undo.activeTokenId;

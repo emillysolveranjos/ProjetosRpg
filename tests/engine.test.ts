@@ -6,6 +6,11 @@ import {
   applyHealing,
   changeConditionStacks,
   processTurn,
+  saveDamageType,
+  deleteDamageType,
+  saveDefensePreset,
+  deleteDefensePreset,
+  applyDefensePreset,
   saveConditionDefinition,
   setReductions,
   undoLastAction,
@@ -23,7 +28,7 @@ function poison(overrides: Partial<ConditionDefinition> = {}): ConditionDefiniti
     name: "Envenenado",
     maximumStacks: 4,
     duration: { ticks: 2, decrementOn: "TURN_END" },
-    effects: [{ id: "poison-damage", trigger: "TURN_START", kind: "DAMAGE", expression: "3", categories: ["VENENO"], multiplyByStacks: true, bypassReductions: false }],
+    effects: [{ id: "poison-damage", trigger: "TURN_START", kind: "DAMAGE", expression: "3", damageTypeIds: ["damage-poison"], multiplyByStacks: true, bypassReductions: false }],
     ...overrides,
   };
 }
@@ -40,21 +45,21 @@ describe("dano, cura e reduções", () => {
   it("aplica reduções universais e categorizadas em sequência", () => {
     let state = fighter();
     state = setReductions(state, "token-1", [
-      { id: "armor", label: "Armadura", amount: 3, categories: [] },
-      { id: "fire", label: "Proteção ígnea", amount: 4, categories: ["fogo"] },
-      { id: "cold", label: "Proteção gélida", amount: 99, categories: ["gelo"] },
+      { id: "armor", label: "Armadura", amount: 3, damageTypeIds: [] },
+      { id: "fire", label: "Proteção ígnea", amount: 4, damageTypeIds: ["damage-fire"] },
+      { id: "cold", label: "Proteção gélida", amount: 99, damageTypeIds: ["damage-cold"] },
     ]);
-    const result = applyDamage(state, "token-1", "12", ["FOGO"]).result;
+    const result = applyDamage(state, "token-1", "12", ["damage-fire"]).result;
     expect(result).toMatchObject({ rawAmount: 12, reducedBy: 7, finalAmount: 5 });
   });
 
   it("bypass ignora todas as reduções", () => {
-    const reduced = setReductions(fighter(), "token-1", [{ id: "all", label: "Tudo", amount: 99, categories: [] }]);
+    const reduced = setReductions(fighter(), "token-1", [{ id: "all", label: "Tudo", amount: 99, damageTypeIds: [] }]);
     expect(applyDamage(reduced, "token-1", "8", [], true).result.finalAmount).toBe(8);
   });
 
   it("redução nunca torna o dano negativo", () => {
-    const reduced = setReductions(fighter(), "token-1", [{ id: "all", label: "Tudo", amount: 99, categories: [] }]);
+    const reduced = setReductions(fighter(), "token-1", [{ id: "all", label: "Tudo", amount: 99, damageTypeIds: [] }]);
     expect(applyDamage(reduced, "token-1", "8").result.finalAmount).toBe(0);
   });
 
@@ -88,6 +93,37 @@ describe("dano, cura e reduções", () => {
   });
 });
 
+describe("biblioteca de dano e defesas", () => {
+  it("recusa nomes equivalentes e tipos inexistentes", () => {
+    const state = createEmptyState();
+    expect(() => saveDamageType(state, { id: "outro", name: "fisico", color: "#ffffff" })).toThrow("nome");
+    expect(() => saveDefensePreset(state, { id: "preset", name: "Teste", amount: 2, damageTypeIds: ["inexistente"] })).toThrow("não existe");
+  });
+
+  it("aplica uma defesa uma só vez quando vários tipos correspondem", () => {
+    let state = fighter(20);
+    state = setReductions(state, "token-1", [{ id: "ward", label: "Proteção elemental", amount: 4, damageTypeIds: ["damage-fire", "damage-cold"] }]);
+    expect(applyDamage(state, "token-1", "10", ["damage-fire", "damage-cold"]).result).toMatchObject({ reducedBy: 4, finalAmount: 6 });
+  });
+
+  it("aplica preset como cópia e preserva o token ao editar ou excluir o original", () => {
+    let state = saveDefensePreset(fighter(20), { id: "armor", name: "Armadura", amount: 3, damageTypeIds: ["damage-physical"] });
+    state = applyDefensePreset(state, "token-1", "armor");
+    const copiedId = state.combatants["token-1"]!.reductions[0]!.id;
+    state = saveDefensePreset(state, { id: "armor", name: "Armadura aprimorada", amount: 8, damageTypeIds: [] });
+    state = deleteDefensePreset(state, "armor");
+    expect(state.combatants["token-1"]!.reductions[0]).toEqual({ id: copiedId, label: "Armadura", amount: 3, damageTypeIds: ["damage-physical"] });
+  });
+
+  it("bloqueia exclusão de tipo referenciado e permite após remover o uso", () => {
+    let state = saveDamageType(createEmptyState(), { id: "radiant", name: "Radiante", color: "#ffffff" });
+    state = saveDefensePreset(state, { id: "ward", name: "Proteção", amount: 2, damageTypeIds: ["radiant"] });
+    expect(() => deleteDamageType(state, "radiant")).toThrow("preset");
+    state = deleteDefensePreset(state, "ward");
+    expect(deleteDamageType(state, "radiant").damageTypes.some((type) => type.id === "radiant")).toBe(false);
+  });
+});
+
 describe("condições e turnos", () => {
   it("multiplica efeito por stacks e decrementa duração no gatilho configurado", () => {
     let state = saveConditionDefinition(fighter(40), poison());
@@ -109,7 +145,7 @@ describe("condições e turnos", () => {
   });
 
   it("executa cura no fim do turno", () => {
-    const regen = poison({ id: "regen", name: "Regeneração", duration: undefined, effects: [{ id: "heal", trigger: "TURN_END", kind: "HEAL", expression: "5", categories: [], multiplyByStacks: false, bypassReductions: false }] });
+    const regen = poison({ id: "regen", name: "Regeneração", duration: undefined, effects: [{ id: "heal", trigger: "TURN_END", kind: "HEAL", expression: "5", damageTypeIds: [], multiplyByStacks: false, bypassReductions: false }] });
     let state = applyDamage(fighter(20), "token-1", "10").state;
     state = saveConditionDefinition(state, regen);
     state = applyCondition(state, "token-1", "regen");
@@ -118,8 +154,8 @@ describe("condições e turnos", () => {
   });
 
   it("efeitos de condições atravessam zero e curam a partir do negativo", () => {
-    const damage = poison({ effects: [{ id: "damage", trigger: "TURN_START", kind: "DAMAGE", expression: "30", categories: [], multiplyByStacks: false, bypassReductions: false }] });
-    const heal = poison({ id: "heal", name: "Cura", effects: [{ id: "heal", trigger: "TURN_END", kind: "HEAL", expression: "8", categories: [], multiplyByStacks: false, bypassReductions: false }] });
+    const damage = poison({ effects: [{ id: "damage", trigger: "TURN_START", kind: "DAMAGE", expression: "30", damageTypeIds: [], multiplyByStacks: false, bypassReductions: false }] });
+    const heal = poison({ id: "heal", name: "Cura", effects: [{ id: "heal", trigger: "TURN_END", kind: "HEAL", expression: "8", damageTypeIds: [], multiplyByStacks: false, bypassReductions: false }] });
     let state = addCombatant(createEmptyState(), "token-1", 20, 20);
     state = saveConditionDefinition(saveConditionDefinition(state, damage), heal);
     state = applyCondition(applyCondition(state, "token-1", "poison"), "token-1", "heal");
@@ -146,7 +182,7 @@ describe("condições e turnos", () => {
   });
 
   it("não deixa mutações parciais escaparem quando um efeito falha", () => {
-    const invalid = poison({ effects: [{ id: "one", trigger: "TURN_START", kind: "DAMAGE", expression: "2", categories: [], multiplyByStacks: false, bypassReductions: false }, { id: "bad", trigger: "TURN_START", kind: "DAMAGE", expression: "1d1-2", categories: [], multiplyByStacks: false, bypassReductions: false }] });
+    const invalid = poison({ effects: [{ id: "one", trigger: "TURN_START", kind: "DAMAGE", expression: "2", damageTypeIds: [], multiplyByStacks: false, bypassReductions: false }, { id: "bad", trigger: "TURN_START", kind: "DAMAGE", expression: "1d1-2", damageTypeIds: [], multiplyByStacks: false, bypassReductions: false }] });
     let state = fighter(20);
     // A validação antecipada aceita a sintaxe; a execução recusa o resultado não positivo.
     state = saveConditionDefinition(state, invalid);
