@@ -1,10 +1,18 @@
 import { act, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/action/App";
 import { useAppStore } from "../src/state/store";
 import { createEmptyState, parseSceneState } from "../src/state/schema";
 import { addCombatant } from "../src/domain/engine";
-import { Network } from "./network";
+import { Network, type MemoryGateway } from "./network";
+import { PROTOCOL_VERSION } from "../src/owlbear/sync";
+// Anuncia um coordenador pronto para o painel sair do modo somente consulta.
+async function coordinatorOnline(gm: MemoryGateway) {
+  await act(() => gm.sendMessage({ type: "presence", protocol: PROTOCOL_VERSION, session: "test", ready: true, sceneReady: true }));
+  await waitFor(() => expect(useAppStore.getState().online).toBe(true));
+}
+const realCommand = useAppStore.getState().command;
+afterEach(() => useAppStore.setState({ command: realCommand }));
 beforeEach(() => useAppStore.setState({ status: "LOADING", state: createEmptyState(), participants: [], self: undefined, role: "PLAYER", online: false, busy: false, error: undefined, notice: undefined, pendingTokenId: undefined }));
 function setup() {
   const n = new Network(), gm = n.join("gm", "GM"), p = n.join("p", "PLAYER"), other = n.join("other", "PLAYER");
@@ -22,11 +30,11 @@ describe("painel de jogadores", () => {
     expect(screen.queryByText("B", { selector: "h2" })).not.toBeInTheDocument();
     expect(screen.getByText("45%")).toBeInTheDocument();
     expect(screen.queryByText("13/29")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cura" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aplicar cura" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Ações de HP: 45%" }));
-    expect(screen.getByRole("button", { name: "Cura" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Aplicar cura" })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Dano" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aplicar dano" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Tipo de dano")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Acesso" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "+ Token selecionado" })).not.toBeInTheDocument();
   });
@@ -91,11 +99,11 @@ describe("painel de jogadores", () => {
   it("expande apenas um cartão e mantém a edição recolhida inicialmente", async () => {
     const { gm } = setup(); render(<App gateway={gm} />);
     await screen.findByText("2 combatentes");
-    expect(screen.queryByLabelText("Dano")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Valor de HP")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Ações de HP: 13/29" }));
-    expect(screen.getByLabelText("Dano")).toBeInTheDocument();
+    expect(screen.getByLabelText("Valor de HP")).toHaveFocus();
     fireEvent.click(screen.getByRole("button", { name: "Detalhes de B" }));
-    expect(screen.queryByLabelText("Dano")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Valor de HP")).not.toBeInTheDocument();
     expect(screen.getAllByRole("region", { name: "Detalhes do combatente" })).toHaveLength(1);
   });
   it("mostra ajustes separados de HP atual e máximo conforme a autorização", async () => {
@@ -152,5 +160,54 @@ describe("painel de jogadores", () => {
     expect(within(dialog).getByText("Mágico")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: /Presets de defesa/ }));
     expect(within(dialog).getByText("Nenhum preset")).toBeInTheDocument();
+  });
+  it("aplica dano rápido com Enter e cura com Shift+Enter, mantendo o foco", async () => {
+    const { gm } = setup(); render(<App gateway={gm} />);
+    await screen.findByText("2 combatentes"); await coordinatorOnline(gm);
+    const command = vi.fn(async () => true); useAppStore.setState({ command });
+    fireEvent.click(screen.getByRole("button", { name: "Ações de HP: 13/29" }));
+    const input = screen.getByLabelText("Valor de HP");
+    fireEvent.change(screen.getByLabelText("Tipo de dano"), { target: { value: "damage-fire" } });
+    fireEvent.change(input, { target: { value: "2d6+3" } });
+    fireEvent.keyDown(input, { key: "Enter" }); fireEvent.submit(input);
+    await waitFor(() => expect(command).toHaveBeenCalledWith({ type: "damage", tokenId: "a", components: [{ expression: "2d6+3", damageTypeIds: ["damage-fire"], ignoreImmunity: false }] }));
+    await waitFor(() => expect(input).toHaveValue(""));
+    expect(input).toHaveFocus();
+    fireEvent.change(input, { target: { value: "4" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
+    await waitFor(() => expect(command).toHaveBeenLastCalledWith({ type: "heal", tokenId: "a", amount: 4 }));
+    expect(command).toHaveBeenCalledTimes(2);
+  });
+  it("cura exige número inteiro e dano avançado continua disponível", async () => {
+    const { gm } = setup(); render(<App gateway={gm} />);
+    await screen.findByText("2 combatentes"); await coordinatorOnline(gm);
+    fireEvent.click(screen.getByRole("button", { name: "Ações de HP: 13/29" }));
+    fireEvent.change(screen.getByLabelText("Valor de HP"), { target: { value: "1d6" } });
+    expect(screen.getByRole("button", { name: "Aplicar cura" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Aplicar dano" })).toBeEnabled();
+    expect(screen.getByText(/Dano avançado/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Aplicar dano avançado" })).toBeInTheDocument();
+  });
+  it("edita a iniciativa no próprio cartão e segue para o próximo combatente", async () => {
+    const { gm } = setup(); render(<App gateway={gm} />);
+    await screen.findByText("2 combatentes"); await coordinatorOnline(gm);
+    const command = vi.fn(async () => true); useAppStore.setState({ command });
+    fireEvent.click(screen.getAllByRole("button", { name: "Editar iniciativa" })[0]!);
+    const first = screen.getByLabelText("Iniciativa");
+    expect(first).toHaveFocus();
+    fireEvent.change(first, { target: { value: "15" } });
+    fireEvent.keyDown(first, { key: "Enter" });
+    await waitFor(() => expect(command).toHaveBeenCalledWith({ type: "initiative", tokenId: "a", value: 15 }, expect.any(Number)));
+    const card = await screen.findByRole("article", { name: "B" });
+    await waitFor(() => expect(within(card).getByLabelText("Iniciativa")).toHaveFocus());
+    fireEvent.keyDown(within(card).getByLabelText("Iniciativa"), { key: "Escape" });
+    expect(screen.queryByLabelText("Iniciativa")).not.toBeInTheDocument();
+  });
+  it("sugere ordenar quando as iniciativas estão fora de ordem", async () => {
+    const { n, gm } = setup();
+    const s = parseSceneState(n.value); s.combatants.a!.initiative = 3; s.combatants.b!.initiative = 12;
+    n.value = s; render(<App gateway={gm} />);
+    expect(await screen.findByText("Iniciativas fora de ordem.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ordenar agora" })).toBeInTheDocument();
   });
 });

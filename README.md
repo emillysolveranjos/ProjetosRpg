@@ -7,7 +7,7 @@ Extensão do [Owlbear Rodeo](https://www.owlbear.rodeo/) para mestres e jogadore
 1. No perfil do Owlbear, abra **Extensions → Add Extension**.
 2. Cole [o link de instalação](https://emillysolveranjos.github.io/ProjetosRpg/manifest.json).
 3. Na sala, habilite **Rulebear** em **Extensions** e abra o botão do urso.
-4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.4.0.
+4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.5.0.
 
 Sem servidor local, conta GitHub ou login adicional. Distribuição por link; não está na loja do Owlbear. Desative instalações locais antigas na sala para não executar duas versões sobre o mesmo encontro.
 
@@ -24,7 +24,7 @@ Sem servidor local, conta GitHub ou login adicional. Distribuição por link; n�
 
 ## Iniciativa e turnos
 
-Clique em **Iniciativa** no cartão para digitar o valor. O mestre usa **⋯ do encontro → Ordenar iniciativa** e os botões de ordem para resolver empates ou ajustar a fila. Alterar um valor não reorganiza automaticamente o encontro.
+Clique no quadrado de iniciativa à esquerda do cartão (**INI** quando vazio) e digite o valor. **Enter** ou **Tab** salva e já abre a iniciativa do próximo combatente; **Esc** cancela. Alterar um valor não reorganiza automaticamente o encontro: antes de iniciar, o painel avisa quando há iniciativas fora de ordem e oferece **Ordenar agora**. O mesmo comando fica em **⋯ do encontro → Ordenar iniciativa**, e os botões de ordem do cartão resolvem empates.
 
 **Iniciar** abre a rodada 1. **Próximo →** executa os efeitos de fim do participante atual e início do próximo em uma única operação. Ao completar a fila, a rodada aumenta. O dono do token ativo pode encerrar o turno se o mestre permitir.
 
@@ -44,11 +44,13 @@ Em **Defesas** no cartão do token, escolha um preset e clique em **Adicionar ao
 
 ## Painel compacto
 
-Clique no **valor ou barra de HP** para escolher Dano, Cura ou Ajuste; clique nos demais recursos para editá-los. No modo Ajuste, HP atual e HP máximo possuem campos e permissões independentes. Alterar o máximo preserva o HP atual, inclusive valores negativos e sobrevida. Só aparecem ações autorizadas. Os detalhes de um único cartão ficam abertos por vez.
+Clique na **barra de HP** e digite o valor: **Enter** aplica dano (aceita dados, como `2d6+3`, e um tipo opcional) e **Shift+Enter** aplica cura. O campo continua focado para encadear valores. **Dano avançado** abre os componentes múltiplos, imunidade e RD; **Ajustar HP atual ou máximo** abre os ajustes, com campos e permissões independentes. Clique nos demais recursos para editá-los.
+
+Com a cor padrão, a barra de HP no painel fica verde acima de 50%, amarela até 25% e vermelha abaixo disso; cores escolhidas pelo mestre são mantidas. Tokens com HP 0 ou negativo aparecem como **CAÍDO**. O topo mostra a rodada e de quem é a vez, e o botão de desfazer indica qual ação será desfeita. Alterar o máximo preserva o HP atual, inclusive valores negativos e sobrevida. Só aparecem ações autorizadas. Os detalhes de um único cartão ficam abertos por vez.
 
 O mestre concede individualmente **Informar iniciativa**, **Aplicar dano**, **Aplicar cura**, **Ajustar HP atual**, **Ajustar HP máximo**, **Alterar condições** e **Encerrar o próprio turno**. Dano, cura, ajustes e condições não exigem responsabilidade pelo token; iniciativa e encerramento exigem. O token precisa estar visível no painel do jogador. As ações continuam disponíveis com HP em porcentagem ou oculto, sem revelar o resultado exato. Se condições estiverem ocultas, o jogador autorizado escolhe a definição e a operação sem ver condições aplicadas, stacks ou duração.
 
-O botão **⋯ no cartão** reúne condições, defesas, acesso, marcadores, posição e ordem. Configurações completas continuam em janelas próprias. A confirmação de salvamento aparece brevemente no rodapé. A prévia do jogador é somente leitura e tem **Voltar ao mestre**.
+O botão **⋯ no cartão** reúne condições, defesas e, recolhidos, a posição dos marcadores na sua tela e a seção **Ordem, acesso e marcadores** do mestre. Configurações completas continuam em janelas próprias. A confirmação de salvamento aparece brevemente no rodapé. A prévia do jogador é somente leitura e tem **Voltar ao mestre**.
 
 ## Marcadores e posição
 

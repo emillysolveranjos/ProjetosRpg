@@ -1,4 +1,19 @@
-# Validação da Rulebear 2.4.0
+# Validação da Rulebear 2.5.0
+
+## Praticidade e design do painel (2.5.0)
+
+Mudanças somente de interface; schema v6 e protocolo 6 não mudaram, então salas em 2.4.0 continuam compatíveis.
+
+- Dano/cura rápidos na barra de HP: Enter aplica dano (com dados e tipo opcional), Shift+Enter aplica cura, foco mantido; dano avançado e ajustes ficam recolhidos.
+- Iniciativa editável no cartão, com Enter/Tab avançando ao próximo combatente e aviso **Ordenar agora** antes do início.
+- Cartões em uma linha, barra de HP colorida por saúde quando usa a cor padrão, estado **CAÍDO**, destaque e nome de quem está na vez, dica do Undo e rodapé uniforme.
+- O modo de demonstração mantém a presença do coordenador simulado.
+
+Validação local em 05/10/2026: lint e tipos passaram; 150 testes passaram em 13 arquivos; build público verificado. Fluxos de dano, cura, iniciativa, ordenação, início de turno, HP negativo e tema claro conferidos no modo de demonstração em 400 e 320 px. A visão do jogador foi coberta pelos testes automatizados.
+
+O lockfile atualiza `brace-expansion` (dependência de desenvolvimento via ESLint) para eliminar a ocorrência alta GHSA-q2hr-2g5m-vwhr; restam apenas as duas moderadas conhecidas da cadeia SDK → `uuid`.
+
+## Validação anterior (2.4.0)
 
 ## Imunidade e penetração
 

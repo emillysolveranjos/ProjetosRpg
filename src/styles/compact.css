@@ -11,11 +11,25 @@
 .compact-app .connection-note { color: var(--muted); font-size: 11px; margin: 8px 12px; line-height: 1.5; }
 .compact-app .preview-banner { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--panel-2); border-bottom: 1px solid var(--amber); font-size: 11px; }
 .compact-app .preview-banner > span { flex: 1; }
+.compact-app .sort-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px 10px 8px; padding: 6px 6px 6px 10px; border: 1px dashed color-mix(in srgb, var(--amber) 45%, var(--line)); border-radius: 8px; color: var(--muted); font-size: 11px; }
+.compact-app .sort-hint .text-button { color: var(--amber); font-size: 11px; font-weight: 700; padding: 4px 6px; }
 .compact-app .preview-banner .button { font-size: 11px; padding: 7px; }
 .compact-app .roster { gap: 8px; padding: 0 10px 12px; }
 .compact-app .compact-card { border-radius: 10px; box-shadow: none; }
-.compact-app .compact-card.active { box-shadow: inset 3px 0 var(--amber); }
-.compact-app .combatant-main { padding: 10px 10px 5px; align-items: center; gap: 9px; }
+.compact-app .compact-card.active { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 7%, var(--panel)); box-shadow: inset 3px 0 var(--amber); }
+.compact-app .compact-card.down .portrait { filter: grayscale(1); opacity: .55; }
+.compact-app .compact-card.down h2 { color: var(--muted); }
+.compact-app .down-chip { color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--line)); padding: 1px 4px; border-radius: 4px; font: 700 8px "Cascadia Mono", Consolas, monospace; white-space: nowrap; }
+.compact-app .active-name { color: var(--amber); font-weight: 700; }
+.compact-app .combatant-main { padding: 8px 8px 8px 10px; align-items: center; gap: 8px; }
+.compact-app .initiative-badge, .compact-app .initiative-input { flex: 0 0 34px; width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); font: 700 13px "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums; text-align: center; }
+.compact-app button.initiative-badge { cursor: pointer; }
+.compact-app .initiative-badge.empty { border-style: dashed; color: var(--muted); }
+.compact-app .initiative-badge small { font-size: 8px; letter-spacing: .06em; }
+.compact-app button.initiative-badge:hover { border-color: var(--amber); color: var(--amber); }
+.compact-app .initiative-input { flex-basis: 52px; width: 52px; border-color: var(--amber); -moz-appearance: textfield; }
+.compact-app .initiative-input::-webkit-inner-spin-button { display: none; }
+.compact-app .combatant-info { display: grid; gap: 3px; }
 .compact-app .portrait { width: 36px; height: 36px; border-radius: 50%; }
 .compact-app .name-row { flex-wrap: wrap; gap: 4px 6px; }
 .compact-app .name-row h2 { font-size: 14px; }
@@ -27,14 +41,15 @@
 .compact-app .resource-value { border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 5px 0; color: var(--ink); min-width: 0; text-align: left; }
 .compact-app button.resource-value { cursor: pointer; }
 .compact-app button.resource-value:hover, .compact-app button.initiative-value:hover { background: var(--panel-2); }
-.compact-app .bar-value { width: 100%; min-height: 36px; }
+.compact-app .bar-value { width: 100%; min-height: 0; }
+.compact-app .combatant-info .bar-value { padding: 2px 0; }
 .compact-app .marker-caption { margin-bottom: 4px; font-size: 11px; overflow-wrap: anywhere; }
 .compact-app .marker-caption > span { color: var(--muted); }
 .compact-app .marker-caption strong { font-variant-numeric: tabular-nums; }
 .compact-app .hp-track { display: block; width: 100%; height: 5px; }
 .compact-app .bar-name { display: block; color: var(--muted); font-size: 10px; margin-bottom: 3px; }
 .compact-app .panel-hp-track { position: relative; height: 18px; overflow: hidden; background: var(--panel-2); }
-.compact-app .panel-hp-track .hp-fill { position: absolute; inset: 0 auto 0 0; height: 100%; border-radius: inherit; }
+.compact-app .panel-hp-track .hp-fill { position: absolute; inset: 0 auto 0 0; height: 100%; border-radius: inherit; transition: width .25s ease, background-color .25s ease; }
 .compact-app .panel-hp-track .hp-over { position: absolute; inset: 0 0 0 auto; height: 100%; border-radius: inherit; background: #3b82f6; }
 .compact-app .panel-hp-track strong { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; color: #fff; font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
 .compact-app .badge-value { max-width: 100%; background: var(--panel-2); padding: 5px 8px; }
@@ -65,7 +80,8 @@
 .compact-app .counter-controls { display: flex; gap: 4px; }
 .compact-app .end-own-turn { width: 100%; padding: 9px; background: var(--panel-2); border: 0; border-top: 1px solid var(--line); color: var(--amber); cursor: pointer; font-size: 12px; }
 .compact-app .footer-bar { height: 40px; padding: 0 10px; gap: 8px; }
-.compact-app .footer-bar .text-button { padding: 8px 0; font-size: 11px; }
+.compact-app .footer-bar .text-button { padding: 8px 4px; font-size: 11px; font-weight: 600; }
+.compact-app .footer-bar .text-button:hover { color: var(--amber); }
 .compact-app .dialog { max-width: 100%; overflow-wrap: anywhere; }
 .compact-app .dialog .preview-select { display: grid; padding: 0; margin-bottom: 16px; }
 .compact-app .dialog > label { margin-bottom: 10px; }
@@ -82,3 +98,23 @@
   .compact-app .reduction-row { grid-template-columns: 1fr 52px; }
   .compact-app .condition-action-form { grid-template-columns: 1fr; }
 }
+
+.compact-app .hp-editor { gap: 8px; }
+.compact-app .hp-quick { display: grid; gap: 6px; }
+.compact-app .hp-quick-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 120px); gap: 6px; }
+.compact-app .hp-quick-row:has(> :only-child) { grid-template-columns: 1fr; }
+.compact-app .hp-quick-row input { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.compact-app .hp-quick-row select { font-size: 12px; }
+.compact-app .hp-quick-actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.compact-app .card-details .hp-quick-actions .button { min-height: 38px; font-size: 13px; }
+.compact-app .damage-action { border-color: color-mix(in srgb, var(--danger) 60%, var(--line)); background: color-mix(in srgb, var(--danger) 16%, var(--panel)); color: var(--danger); }
+.compact-app .heal-action { border-color: color-mix(in srgb, var(--teal) 60%, var(--line)); background: color-mix(in srgb, var(--teal) 14%, var(--panel)); color: var(--teal); }
+.compact-app .damage-action:disabled, .compact-app .heal-action:disabled { opacity: .45; cursor: default; }
+.compact-app .hp-quick .field-help { margin: 0; font-size: 10px; }
+.compact-app .hp-more, .compact-app .personal-view, .compact-app .admin-actions { display: block; border-top: 1px solid var(--line); padding-top: 6px; }
+.compact-app .hp-more > summary, .compact-app .personal-view > summary, .compact-app .admin-actions > summary { font-size: 11px; }
+.compact-app .hp-more[open] > summary, .compact-app .personal-view[open] > summary, .compact-app .admin-actions[open] > summary { margin-bottom: 8px; color: var(--ink); }
+.compact-app .personal-view { display: block; }
+.compact-app .personal-view > summary b { color: var(--amber); font-weight: 600; }
+.compact-app .personal-view > p { margin: 0 0 8px; font-size: 10px; }
+.compact-app .encounter-strip .muted { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

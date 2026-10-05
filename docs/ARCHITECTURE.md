@@ -1,4 +1,4 @@
-# Arquitetura da Rulebear 2.4
+# Arquitetura da Rulebear 2.5
 
 O histórico mantém detalhes estruturados por componente, inclusive efeitos automáticos e os dois lados do avanço de turno. Cada detalhe guarda token, origem, tipos, dano bruto, RD total, penetração, imunidade e dano final. Jogadores só recebem esses detalhes na interface quando têm acesso ao histórico, às defesas e ao HP completo do token; efeitos também exigem condições visíveis. Resumos antigos continuam genéricos para jogadores. A filtragem é refeita com as permissões atuais.
 

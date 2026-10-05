@@ -17,6 +17,8 @@ export class MockOwlbearGateway implements OwlbearGateway {
       for (const m of c.markers) { m.audience.mode = "ALL"; m.editable = true; }
       c.settings.permissions = { initiative: ["player"], damage: ["player"], heal: ["player"], adjustCurrentHp: ["player"], adjustMaximumHp: ["player"], conditions: ["player"], endTurn: ["player"] };
     }
+    // Presenças expiram em 6,5 s; o coordenador simulado precisa anunciar-se como o real.
+    setInterval(() => this.messages.forEach((cb) => cb({ type: "presence", protocol: PROTOCOL_VERSION, session: "mock", ready: true, sceneReady: true }, "mock-gm")), 1500);
   }
   async ready() {}
   async getSelf(): Promise<Participant> { return { id: this.role === "GM" ? "gm" : "player", connectionId: "mock-user", name: "Você", role: this.role }; }
