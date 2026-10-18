@@ -71,7 +71,37 @@ export type HistoryKind =
   | "TURN_START"
   | "TURN_END" | "ENCOUNTER_CHANGED" | "MARKER_CHANGED" | "ACCESS_CHANGED" | "LIBRARY_CHANGED";
 
+/** Uma rolagem guardada para o histórico; só os primeiros dados ficam salvos. */
+export interface RollRecord {
+  expression: string;
+  rolls: number[];
+  total: number;
+  truncated?: boolean;
+}
+
+export interface DamagePart {
+  roll: RollRecord;
+  multiplier: number;
+  types: string[];
+  immune: boolean;
+  rd: number;
+  penetration: number;
+  final: number;
+}
+
+/** O que aconteceu, em dados, para o histórico mostrar frases claras. */
+export type HistoryEvent =
+  | { kind: "DAMAGE"; tokenId: string; source?: string; parts: DamagePart[]; total: number; hpBefore: number; hpAfter: number }
+  | { kind: "HEAL"; tokenId: string; source?: string; roll?: RollRecord; amount: number; hpBefore: number; hpAfter: number }
+  | { kind: "TURN"; tokenId: string; phase: "START" | "END"; round: number }
+  | { kind: "CONDITION"; tokenId: string; name: string; change: "APPLIED" | "REMOVED" | "STACKS" | "EXPIRED"; stacks?: number }
+  | { kind: "HP"; tokenId: string; target: "CURRENT" | "MAXIMUM"; before: number; after: number };
+
+/** Para jogadores sem acesso aos números: diz o que aconteceu, sem valores. */
+export type HistoryEventView = HistoryEvent | { kind: "DAMAGE" | "HEAL" | "HP"; tokenId: string; hidden: true };
+
 export interface HistoryEntry {
+  events?: HistoryEvent[];
   damageDetails?: DamageHistoryDetail[];
   id: string;
   occurredAt: string;
@@ -81,6 +111,8 @@ export interface HistoryEntry {
   amount?: number;
   undoneAt?: string;
 }
+
+export type HistoryEntryView = Omit<HistoryEntry, "events"> & { events?: HistoryEventView[] };
 
 export interface DamageHistoryDetail {
   tokenId: string;

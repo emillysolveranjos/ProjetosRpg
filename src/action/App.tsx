@@ -8,6 +8,7 @@ import "../styles/compact.css";
 import { LibraryDialog } from "./RuleEditors";
 import { Dialog } from "./Shared";
 import { Icon } from "./Icon";
+import { HistoryList } from "./HistoryList";
 const send = (command: Parameters<ReturnType<typeof useAppStore.getState>["command"]>[0]) => useAppStore.getState().command(command);
 export function App({ gateway }: { gateway?: OwlbearGateway }) {
   const store = useAppStore();
@@ -41,7 +42,13 @@ export function App({ gateway }: { gateway?: OwlbearGateway }) {
   const previewing = role === "GM" && !!preview;
   const readOnly = busy || !online || previewing;
   const combatants = state.encounter.order.map((id) => state.combatants[id]).filter((c): c is CombatantState => !!c && visibleCombatant(c, viewer) && (gm || tokens.some((t) => t.id === c.tokenId && t.visible !== false)));
-  const history = visibleHistory(state, viewer).filter((e) => gm || combatants.some((c) => c.tokenId === e.tokenId));
+  // Jogadores só veem acontecimentos de tokens que aparecem no painel deles.
+  const shown = (tokenId?: string) => gm || combatants.some((c) => c.tokenId === tokenId);
+  const history = visibleHistory(state, viewer).flatMap((e) => {
+    if (!e.events) return shown(e.tokenId) ? [e] : [];
+    const events = e.events.filter((event) => shown(event.tokenId));
+    return events.length ? [{ ...e, events }] : [];
+  });
   const undoSummary = state.undo && state.history.find((e) => e.id === state.undo?.historyId)?.summary;
   const activeName = state.activeTokenId && combatants.some((c) => c.tokenId === state.activeTokenId) ? tokens.find((t) => t.id === state.activeTokenId)?.name : undefined;
   const rank = (tokenId: string) => state.combatants[tokenId]?.initiative ?? -Infinity;
@@ -77,7 +84,7 @@ export function App({ gateway }: { gateway?: OwlbearGateway }) {
     {pendingTokenId && gm && <AddDialog token={tokens.find((t) => t.id === pendingTokenId)} onClose={() => setPendingToken()} />}
     {dialog === "library" && gm && <LibraryDialog state={state} onClose={() => setDialog(null)} />}
     {dialog === "encounter" && gm && <Dialog title="Opções do encontro" onClose={() => setDialog(null)}><div className="form-stack"><button className="button" disabled={readOnly || !combatants.length} onClick={() => void send({ type: "sort" }).then((ok) => { if (ok) setDialog(null); })}>Ordenar iniciativa</button><p className="muted">Maior iniciativa primeiro. Ajuste empates nos detalhes do combatente.</p>{state.encounter.started && <button className="button" disabled={readOnly} onClick={() => void send({ type: "stop" }).then((ok) => { if (ok) setDialog(null); })}>Encerrar encontro</button>}</div></Dialog>}
-    {dialog === "history" && <Dialog title="Histórico da cena" onClose={() => setDialog(null)}><ol className="history-list">{[...history].reverse().map((e) => <li key={e.id} className={e.undoneAt ? "undone" : ""}><time>{new Date(e.occurredAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</time><div><strong>{e.tokenId ? tokens.find((t) => t.id === e.tokenId)?.name ?? "Token removido" : "Rulebear"}</strong><span>{e.summary}{e.undoneAt ? " · desfeito" : ""}</span>{e.damageDetails?.map((detail, index) => <p className="damage-history" key={index}><strong>{index + 1}. {tokens.find((token) => token.id === detail.tokenId)?.name ?? "Token removido"} · {detail.source ? detail.source + " · " : ""}{detail.types.join(" + ") || "Sem tipo"}</strong><span>Bruto {detail.raw} · {detail.immune ? "Imune" : `RD ${detail.rd} − penetração ${detail.penetration} = ${Math.max(0, detail.rd - detail.penetration)}`}{detail.ignoreImmunity ? " · Ignorar imunidade" : ""} → {detail.final} de dano</span></p>)}</div></li>)}</ol>{!history.length && <p>Nenhuma ação disponível para sua visualização.</p>}</Dialog>}
+    {dialog === "history" && <Dialog title="Histórico da cena" onClose={() => setDialog(null)}><HistoryList entries={history} nameOf={(tokenId) => tokenId ? tokens.find((t) => t.id === tokenId)?.name ?? "Token removido" : "Rulebear"} /></Dialog>}
     {dialog === "preferences" && <Dialog title="Minha visualização" onClose={() => setDialog(null)}>{role === "GM" && <label className="preview-select">Ver como<select value={preview} onChange={(e) => { setPreview(e.target.value); setExpanded(null); setDialog(null); }}><option value="">Mestre</option>{players.map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select></label>}<div className="display-preference-grid"><label>Posição vertical padrão<select value={store.preferences.position} onChange={(e) => store.setPreferences({ ...store.preferences, position: e.target.value as PositionPreference })}><option value="TOP">Acima dos tokens</option><option value="BOTTOM">Abaixo dos tokens</option></select></label><label>Alinhamento horizontal padrão<select value={store.preferences.horizontal} onChange={(e) => store.setPreferences({ ...store.preferences, horizontal: e.target.value as HorizontalPreference })}><option value="LEFT">Esquerda</option><option value="CENTER">Centro</option><option value="RIGHT">Direita</option></select></label><label>Tamanho padrão dos marcadores<select value={store.preferences.size} onChange={(e) => store.setPreferences({ ...store.preferences, size: e.target.value as MarkerSizePreference })}><option value="SMALL">Pequeno</option><option value="MEDIUM">Médio</option><option value="LARGE">Grande</option></select></label></div><p className="muted">Só muda sua tela. Cada propriedade pode ter uma exceção no cartão do combatente. As preferências ficam salvas por usuário e sala neste navegador.</p><button className="button" onClick={() => store.setPreferences({ ...store.preferences, overrides: {} })}>Limpar minhas exceções</button>{gm && <button className="button" onClick={() => void gateway?.readBackup().then((value) => {
       const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "rulebear-backups.json"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     }).catch(() => useAppStore.setState({ error: "Não foi possível exportar os backups." }))}>Baixar backups anteriores à migração</button>}</Dialog>}

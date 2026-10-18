@@ -11,9 +11,12 @@ import type {
   DamageTypeDefinition,
   DamageReduction,
   DamageResult,
+  DamagePart,
   DefensePreset,
   HistoryEntry,
+  HistoryEvent,
   HistoryKind,
+  RollRecord,
   RulebearSceneState,
   Trigger,
   TriggerResult,
@@ -71,6 +74,26 @@ function commit(
   state.revision += 1;
   state.history = [...state.history, entry].slice(-MAX_HISTORY);
   state.undo = { historyId, ...undo };
+  return state;
+}
+
+const MAX_STORED_ROLLS = 20;
+// Guarda a rolagem de forma compacta: muitos dados (ex.: 100d6) ficam resumidos pelo total.
+function rollRecord(expression: string, rolls: number[], total: number): RollRecord {
+  return { expression: expression.slice(0, 40), rolls: rolls.slice(0, MAX_STORED_ROLLS), total, ...(rolls.length > MAX_STORED_ROLLS ? { truncated: true } : {}) };
+}
+function damagePart(state: RulebearSceneState, component: DamageComponentResult): DamagePart {
+  return {
+    roll: rollRecord(component.expression, component.rolls, component.baseAmount),
+    multiplier: component.baseAmount ? component.rawAmount / component.baseAmount : 1,
+    types: component.damageTypeIds.map((id) => state.damageTypes.find((type) => type.id === id)?.name ?? "Tipo"),
+    immune: component.blockedByImmunity, rd: component.availableReduction, penetration: component.penetrationAmount, final: component.finalAmount,
+  };
+}
+/** Anexa eventos estruturados à última entrada do histórico. */
+function recordEvents(state: RulebearSceneState, events: HistoryEvent[]): RulebearSceneState {
+  const entry = state.history.at(-1);
+  if (entry && events.length) entry.events = [...(entry.events ?? []), ...events];
   return state;
 }
 
@@ -248,6 +271,7 @@ export function applyDamageComponents(
   ].filter(Boolean).join(" · ");
   const next = commit(state, "DAMAGE", `${result.finalAmount} de dano${details ? ` · ${details}` : ""}`, combatantUndo(tokenId, before), tokenId, result.finalAmount);
   next.history.at(-1)!.damageDetails = resolved.map((component) => damageHistory(current, tokenId, component));
+  recordEvents(next, [{ kind: "DAMAGE", tokenId, parts: resolved.map((component) => damagePart(current, component)), total: result.finalAmount, hpBefore: result.hpBefore, hpAfter: result.hpAfter }]);
   return { state: next, result };
 }
 
@@ -279,7 +303,7 @@ export function applyHealing(
   const state = clone(current);
   getCombatant(state, tokenId).currentHp += recovered;
   return {
-    state: commit(state, "HEAL", `${recovered} de cura`, combatantUndo(tokenId, before), tokenId, recovered),
+    state: recordEvents(commit(state, "HEAL", `${recovered} de cura`, combatantUndo(tokenId, before), tokenId, recovered), [{ kind: "HEAL", tokenId, amount: recovered, hpBefore: before.currentHp, hpAfter: before.currentHp + recovered }]),
     recovered,
   };
 }
@@ -471,7 +495,7 @@ export function applyCondition(
     ...(definition.duration ? { remainingTicks: definition.duration.ticks } : {}),
   };
   getCombatant(state, tokenId).conditions.push(applied);
-  return commit(state, "CONDITION_APPLIED", `Condição “${definition.name}” aplicada`, combatantUndo(tokenId, before), tokenId);
+  return recordEvents(commit(state, "CONDITION_APPLIED", `Condição “${definition.name}” aplicada`, combatantUndo(tokenId, before), tokenId), [{ kind: "CONDITION", tokenId, name: definition.name, change: "APPLIED", stacks }]);
 }
 
 export function changeConditionStacks(
@@ -489,7 +513,7 @@ export function changeConditionStacks(
   const next = condition.stacks + delta;
   if (!Number.isInteger(next) || next < 1 || next > definition.maximumStacks) throw new Error(`Os stacks devem ficar entre 1 e ${definition.maximumStacks}.`);
   condition.stacks = next;
-  return commit(state, "CONDITION_CHANGED", `“${definition.name}” agora tem ${next} stack(s)`, combatantUndo(tokenId, before), tokenId);
+  return recordEvents(commit(state, "CONDITION_CHANGED", `“${definition.name}” agora tem ${next} stack(s)`, combatantUndo(tokenId, before), tokenId), [{ kind: "CONDITION", tokenId, name: definition.name, change: "STACKS", stacks: next }]);
 }
 
 export function removeCondition(current: RulebearSceneState, tokenId: string, conditionId: string): RulebearSceneState {
@@ -499,7 +523,7 @@ export function removeCondition(current: RulebearSceneState, tokenId: string, co
   const definition = current.conditionDefinitions.find((item) => item.id === condition.definitionId);
   const state = clone(current);
   getCombatant(state, tokenId).conditions = getCombatant(state, tokenId).conditions.filter((item) => item.id !== conditionId);
-  return commit(state, "CONDITION_REMOVED", `Condição “${definition?.name ?? "sem definição"}” removida`, combatantUndo(tokenId, before), tokenId);
+  return recordEvents(commit(state, "CONDITION_REMOVED", `Condição “${definition?.name ?? "sem definição"}” removida`, combatantUndo(tokenId, before), tokenId), [{ kind: "CONDITION", tokenId, name: definition?.name ?? "Condição", change: "REMOVED" }]);
 }
 
 export function processTurn(
@@ -517,6 +541,7 @@ export function processTurn(
   if (trigger === "TURN_START") state.activeTokenId = tokenId;
   const messages: string[] = [];
   const damageDetails: NonNullable<HistoryEntry["damageDetails"]> = [];
+  const events: HistoryEvent[] = [{ kind: "TURN", tokenId, phase: trigger === "TURN_START" ? "START" : "END", round: state.encounter.round }];
   const conditionSnapshot = [...combatant.conditions];
 
   for (const applied of conditionSnapshot) {
@@ -528,6 +553,7 @@ export function processTurn(
         const result = resolveDamageComponent(combatant, effect, multiplier, rollDie);
         damageDetails.push(damageHistory(state, tokenId, result, definition.name));
         assertHpValue(combatant.currentHp - result.finalAmount);
+        events.push({ kind: "DAMAGE", tokenId, source: definition.name, parts: [damagePart(state, result)], total: result.finalAmount, hpBefore: combatant.currentHp, hpAfter: combatant.currentHp - result.finalAmount });
         combatant.currentHp -= result.finalAmount;
         messages.push(`${definition.name}: ${result.finalAmount} de dano`);
       } else {
@@ -535,6 +561,7 @@ export function processTurn(
         const requested = rolled.total * multiplier;
         if (requested <= 0) throw new Error(`O efeito de cura de “${definition.name}” precisa ser positivo.`);
         const recovered = combatant.currentHp >= combatant.maximumHp ? 0 : Math.min(requested, combatant.maximumHp - combatant.currentHp);
+        events.push({ kind: "HEAL", tokenId, source: definition.name, roll: rollRecord(rolled.expression, rolled.rolls, rolled.total), amount: recovered, hpBefore: combatant.currentHp, hpAfter: combatant.currentHp + recovered });
         combatant.currentHp += recovered;
         messages.push(`${definition.name}: ${recovered} de cura`);
       }
@@ -548,6 +575,7 @@ export function processTurn(
     const remaining = (currentApplied.remainingTicks ?? definition.duration.ticks) - 1;
     if (remaining <= 0) {
       combatant.conditions = combatant.conditions.filter((item) => item.id !== currentApplied.id);
+      events.push({ kind: "CONDITION", tokenId, name: definition.name, change: "EXPIRED" });
       messages.push(`${definition.name}: condição expirada`);
     } else {
       currentApplied.remainingTicks = remaining;
@@ -564,6 +592,7 @@ export function processTurn(
       tokenId,
     );
   if (damageDetails.length) committed.history.at(-1)!.damageDetails = damageDetails;
+  recordEvents(committed, events);
   return { state: committed, messages };
 }
 

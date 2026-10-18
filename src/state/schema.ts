@@ -36,7 +36,16 @@ const v5ConditionDefinitionSchema = z.object({ ...conditionDefinitionFields, eff
 export const conditionDefinitionSchema = z.object({ ...conditionDefinitionFields, effects: z.array(conditionEffectSchema).max(12) });
 export const appliedConditionSchema = z.object({ id: idSchema, definitionId: idSchema, stacks: z.number().int().min(1).max(99), remainingTicks: z.number().int().min(1).max(999).optional() });
 export const legacyCombatantSchema = z.object({ tokenId: idSchema, currentHp: z.number().int().min(0).max(HP_LIMIT), maximumHp: z.number().int().min(1).max(HP_LIMIT), reductions: z.array(oldDamageReductionSchema).max(24), conditions: z.array(appliedConditionSchema).max(50) });
+const rollSchema = z.object({ expression: z.string().max(40), rolls: z.array(z.number().int()).max(20), total: z.number().int(), truncated: z.boolean().optional() });
+const historyEventSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("DAMAGE"), tokenId: idSchema, source: z.string().max(60).optional(), parts: z.array(z.object({ roll: rollSchema, multiplier: z.number().int().min(1).max(99), types: z.array(z.string().max(60)).max(12), immune: z.boolean(), rd: z.number().int().nonnegative(), penetration: z.number().int().nonnegative(), final: z.number().int().nonnegative() })).max(12), total: z.number().int().nonnegative(), hpBefore: z.number().int(), hpAfter: z.number().int() }),
+  z.object({ kind: z.literal("HEAL"), tokenId: idSchema, source: z.string().max(60).optional(), roll: rollSchema.optional(), amount: z.number().int().nonnegative(), hpBefore: z.number().int(), hpAfter: z.number().int() }),
+  z.object({ kind: z.literal("TURN"), tokenId: idSchema, phase: z.enum(["START", "END"]), round: z.number().int().min(0) }),
+  z.object({ kind: z.literal("CONDITION"), tokenId: idSchema, name: z.string().max(60), change: z.enum(["APPLIED", "REMOVED", "STACKS", "EXPIRED"]), stacks: z.number().int().min(1).max(99).optional() }),
+  z.object({ kind: z.literal("HP"), tokenId: idSchema, target: z.enum(["CURRENT", "MAXIMUM"]), before: z.number().finite(), after: z.number().finite() }),
+]);
 const historyEntrySchema = z.object({
+  events: z.array(historyEventSchema).max(60).optional(),
   damageDetails: z.array(z.object({ tokenId: idSchema, source: z.string().max(60).optional(), types: z.array(z.string().max(60)).max(12), raw: z.number().int().nonnegative(), rd: z.number().int().nonnegative(), penetration: z.number().int().nonnegative(), immune: z.boolean(), ignoreImmunity: z.boolean(), final: z.number().int().nonnegative() })).max(1200).optional(),
   id: idSchema, occurredAt: z.iso.datetime(),
   kind: z.enum(["COMBATANT_ADDED", "COMBATANT_REMOVED", "DAMAGE", "HEAL", "REDUCTION_CHANGED", "CONDITION_APPLIED", "CONDITION_CHANGED", "CONDITION_REMOVED", "DEFINITION_CHANGED", "TURN_START", "TURN_END", "ENCOUNTER_CHANGED", "MARKER_CHANGED", "ACCESS_CHANGED", "LIBRARY_CHANGED"]),

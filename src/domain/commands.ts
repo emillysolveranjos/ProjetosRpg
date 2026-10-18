@@ -1,7 +1,7 @@
 import * as engine from "./engine";
 import { markerEditable, permitted } from "./access";
 import { parseSceneState } from "../state/schema";
-import type { CombatantSettings, ConditionDefinition, DamageComponent, DamageReduction, DamageTypeDefinition, DefensePreset, Marker, MarkerTemplate, Participant, RulebearSceneState, EncounterSnapshot } from "./types";
+import type { CombatantSettings, ConditionDefinition, DamageComponent, DamageReduction, DamageTypeDefinition, DefensePreset, HistoryEvent, Marker, MarkerTemplate, Participant, RulebearSceneState, EncounterSnapshot } from "./types";
 export type Command =
   | { type: "add"; tokenId: string; currentHp: number; maximumHp: number }
   | { type: "remove"; tokenId: string }
@@ -28,7 +28,7 @@ export type Command =
   | { type: "markerValue"; tokenId: string; markerId: string; expression?: string; checked?: boolean }
   | { type: "template"; template: MarkerTemplate } | { type: "deleteTemplate"; templateId: string }
   | { type: "prune"; tokenIds: string[] } | { type: "undo" };
-export interface CommandEnvelope { protocol: 7; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
+export interface CommandEnvelope { protocol: 8; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
 export function adjustValue(current: number, expression: string): number {
   const match = /^\s*(=|\+|-|\*|\/)?\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(expression);
   if (!match) throw new Error("Use um número, =valor, +valor, -valor, *valor ou /valor.");
@@ -61,6 +61,7 @@ export function authorize(state: RulebearSceneState, command: Command, actor: Pa
 export function executeCommand(current: RulebearSceneState, command: Command, actor: Participant): RulebearSceneState {
   authorize(current, command, actor);
   let next = structuredClone(current);
+  const extraEvents: HistoryEvent[] = [];
   const c = "tokenId" in command && command.tokenId ? next.combatants[command.tokenId] : undefined;
   if ("tokenId" in command && command.tokenId && command.type !== "add" && !c) throw new Error("Combatente indisponível.");
   switch (command.type) {
@@ -69,9 +70,11 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
     case "damage": next = engine.applyDamageComponents(next, command.tokenId, command.components).state; break;
     case "heal": next = engine.applyHealing(next, command.tokenId, command.amount).state; break;
     case "hpAdjust": {
-      const value = adjustValue(command.target === "CURRENT" ? c!.currentHp : c!.maximumHp, command.expression);
+      const previous = command.target === "CURRENT" ? c!.currentHp : c!.maximumHp;
+      const value = adjustValue(previous, command.expression);
       if (command.target === "CURRENT") { engine.assertHpValue(value); c!.currentHp = value; }
       else { engine.assertMaximumHp(value); c!.maximumHp = value; }
+      extraEvents.push({ kind: "HP", tokenId: command.tokenId, target: command.target, before: previous, after: value });
       break;
     }
     case "reductions": next = engine.setReductions(next, command.tokenId, command.reductions); break;
@@ -110,6 +113,7 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
         const value = adjustValue(m.hp ? c!.currentHp : m.value, command.expression ?? "");
         if (m.hp) {
           engine.assertHpValue(value);
+          extraEvents.push({ kind: "HP", tokenId: command.tokenId, target: "CURRENT", before: c!.currentHp, after: value });
           c!.currentHp = value;
         } else m.value = value;
       }
@@ -171,8 +175,12 @@ export function executeCommand(current: RulebearSceneState, command: Command, ac
   const damageDetails = added.flatMap((entry) => entry.damageDetails ?? []);
   const summary = command.type === "advance" ? "Turno avançado; efeitos de fim e início aplicados." : added[0]?.id !== current.history.at(-1)?.id && next.revision > current.revision ? added.map((e) => e.summary).join(" · ").slice(0, 240) : command.type === "settings" ? "Permissões atualizadas." : command.type === "markerValue" || command.type === "markers" ? "Marcadores atualizados." : command.type === "hpAdjust" ? "HP ajustado." : command.type.includes("DamageType") || command.type.includes("DefensePreset") ? "Biblioteca atualizada." : "Encontro atualizado.";
   const historyId = crypto.randomUUID();
-  next.history = [...current.history, { id: historyId, occurredAt: new Date().toISOString(), kind: "ENCOUNTER_CHANGED" as const, summary, tokenId: "tokenId" in command ? command.tokenId : current.activeTokenId }].slice(-50);
+  // Ações da biblioteca não pertencem a um token; turnos ficam com quem começou (ou encerrou) a vez.
+  const tokenId = "tokenId" in command ? command.tokenId : command.type === "advance" || command.type === "start" ? next.activeTokenId : command.type === "stop" ? current.activeTokenId : undefined;
+  const events = [...added.flatMap((entry) => entry.events ?? []), ...extraEvents];
+  next.history = [...current.history, { id: historyId, occurredAt: new Date().toISOString(), kind: "ENCOUNTER_CHANGED" as const, summary, ...(tokenId ? { tokenId } : {}) }].slice(-50);
   if (damageDetails.length) next.history.at(-1)!.damageDetails = damageDetails;
+  if (events.length) next.history.at(-1)!.events = events;
   next.undo = { historyId, snapshot: snapshot(current) };
   next.revision = current.revision + 1;
   return parseSceneState(next);

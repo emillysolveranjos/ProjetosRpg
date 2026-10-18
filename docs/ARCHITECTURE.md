@@ -12,6 +12,8 @@ HP permanece em currentHp/maximumHp. Um marcador com hp=true referencia esses ca
 
 Tipos de dano possuem ID estável, nome único por comparação sem acentos/maiúsculas, cor e descrição opcional. Defesas e presets são discriminados como `REDUCTION` ou `IMMUNITY`; uma lista vazia de tipos significa defesa universal. Ataques contêm até 12 componentes atômicos. Para cada componente, o motor verifica cobertura de imunidade, soma uma vez cada RD correspondente, rola a expressão opcional de penetração e aplica `max(0, dano − max(0, RD − penetração))`. Componentes antigos híbridos exigem cobertura de todos os tipos para serem bloqueados. Presets continuam gerando cópias independentes nos tokens.
 
+Cada entrada nova do histórico guarda `events` estruturados (`DAMAGE`, `HEAL`, `TURN`, `CONDITION`, `HP`), com rolagens resumidas a no máximo 20 dados, defesa, penetração e HP antes/depois. O comando ainda grava uma única entrada por ação (base do Undo), reunindo os eventos do motor. Ações sem token (biblioteca) não recebem `tokenId`. Para jogadores, cada evento é filtrado: turnos exigem o token visível; condições exigem condições visíveis; dano, cura e HP mostram números só com HP completo (e defesas, no caso de dano), senão viram um evento sem valores.
+
 ## Acesso e apresentação
 
 Audiências: GM, todos, responsáveis e IDs selecionados. Nome/participação é requisito para apresentar o token ao jogador. Cada ação guarda uma lista de IDs autorizados. Dano, cura, ajustes de HP e condições não exigem responsabilidade; iniciativa e fim do próprio turno exigem. Configurações de marcadores permanecem exclusivas de GM. Tokens invisíveis são retirados da visão de jogadores.
@@ -24,7 +26,7 @@ Metadata de cena, itens e jogadores é compartilhada. As restrições são contr
 
 ## Comandos e coordenação
 
-Canal de broadcast `io.github.samuelsanjos.rulebear/v2`. O SDK informa connectionId; o receptor resolve ID e papel usando a lista de participantes, sem confiar no papel enviado no payload. O protocolo de comandos está na versão 7 (a 2.6 acrescentou `mapLabel` e `description` opcionais aos marcadores; um coordenador antigo os descartaria ao validar, por isso o protocolo subiu sem mudar o schema v6); o canal continua estável para que clientes incompatíveis recebam a orientação de recarregar.
+Canal de broadcast `io.github.samuelsanjos.rulebear/v2`. O SDK informa connectionId; o receptor resolve ID e papel usando a lista de participantes, sem confiar no papel enviado no payload. O protocolo de comandos está na versão 8 (a 2.6 acrescentou `mapLabel` e `description` opcionais aos marcadores e a 2.7 acrescentou `events` às entradas do histórico; um coordenador antigo descartaria esses campos ao validar, por isso o protocolo subiu sem mudar o schema v6); o canal continua estável para que clientes incompatíveis recebam a orientação de recarregar.
 
 Backgrounds anunciam presença a cada 1,5 segundo. Entre GMs presentes, o menor connectionId é coordenador. Presenças expiram após 6,5 segundos; mudanças de coordenador exigem estabilização de 2,2 segundos e releitura da cena. Uma sessão aleatória distingue reinícios na mesma conexão. Mudanças de papel/conexão atualizam a eleição.
 
@@ -51,7 +53,7 @@ O importador interpreta os quatro tipos do namespace `com.owl-trackers/trackers`
 
 Somente o coordenador grava migrações v1 a v5. Primeiro valida e cria um backup JSON no localStorage do mestre, separado por sala e mantendo os backups de cenas anteriores. Se o backup falhar, não grava v6. A exportação no painel permite conservar os dados originais fora do navegador.
 
-Migração v1 cria acesso privado, ordem pela sequência existente, iniciativas nulas e rodada 1 se já havia turno ativo. Em v2/v3, permissões booleanas habilitadas viram listas com os responsáveis atuais; edição antiga da barra HP vira ajuste do atual, e ajuste do máximo começa bloqueado. Categorias textuais de v1–v4 são normalizadas para IDs. Na passagem v5→v6, defesas e presets tornam-se reduções fixas, `bypassReductions` torna-se `ignoreImmunity` e nenhuma penetração é criada. Efeitos antigos com vários tipos permanecem híbridos. Combatentes, condições e snapshots de Undo são convertidos pela mesma rotina. Não há downgrade automático; clientes antigos são rejeitados pelo protocolo 7 e recebem orientação para recarregar.
+Migração v1 cria acesso privado, ordem pela sequência existente, iniciativas nulas e rodada 1 se já havia turno ativo. Em v2/v3, permissões booleanas habilitadas viram listas com os responsáveis atuais; edição antiga da barra HP vira ajuste do atual, e ajuste do máximo começa bloqueado. Categorias textuais de v1–v4 são normalizadas para IDs. Na passagem v5→v6, defesas e presets tornam-se reduções fixas, `bypassReductions` torna-se `ignoreImmunity` e nenhuma penetração é criada. Efeitos antigos com vários tipos permanecem híbridos. Combatentes, condições e snapshots de Undo são convertidos pela mesma rotina. Não há downgrade automático; clientes antigos são rejeitados pelo protocolo 8 e recebem orientação para recarregar.
 
 ## Referências
 

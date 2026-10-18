@@ -1,4 +1,16 @@
-# Validação da Rulebear 2.6.0
+# Validação da Rulebear 2.7.0
+
+## Histórico amigável (2.7.0)
+
+Schema v6 sem migração; protocolo 8, porque coordenadores 2.6 descartariam os eventos do histórico.
+
+- Cartões com ícone e cor por tipo, frase direta, dados como peças, HP antes/depois e rodada; avanço de turno agrupa fim, início e efeitos.
+- Eventos estruturados por ação, filtrados por jogador sem revelar números ocultos nem nomes de condições ocultas.
+- Ações da biblioteca deixaram de aparecer associadas ao token em turno.
+- Listas de seleção (select) voltaram a ser legíveis: as opções herdavam texto branco sobre fundo branco.
+- Modo de demonstração com uma condição e uma armadura de exemplo.
+
+Validação local em 18/10/2026: lint e tipos passaram; 170 testes passaram em 16 arquivos; build público verificado. Histórico conferido no modo de demonstração com dano rolado, cura, condição, início e avanço de turno.
 
 ## Design nativo do Owlbear, sigla e descrição dos marcadores (2.6.0)
 
