@@ -26,6 +26,13 @@ export function markerText(m: Marker, c: CombatantState, viewer: Viewer): string
   if (viewer.role !== "GM" && m.display === "PERCENT") return `${Math.round(value / maximum * 100)}%`;
   return `${value}/${maximum}`;
 }
+/** Texto da bolinha no mapa: a sigla identifica o valor, como "CA 15". */
+export function markerMapText(m: Marker, c: CombatantState, viewer: Viewer): string {
+  // No mapa, o círculo grande deixa a marcação desligada legível mesmo em bolinhas pequenas.
+  const value = m.kind === "checkbox" && !m.checked ? "◯" : markerText(m, c, viewer);
+  const label = m.mapLabel?.trim();
+  return label ? `${label} ${value}` : value;
+}
 export function visibleHistory(state: RulebearSceneState, viewer: Viewer): HistoryEntry[] {
   if (viewer.role === "GM") return state.history;
   return state.history.flatMap((entry) => {

@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "../src/action/App";
 import type { RulebearSceneState, TokenView } from "../src/domain/types";
-import type { OwlbearGateway, Role, ThemeMode } from "../src/owlbear/gateway";
+import { FALLBACK_THEMES, type OwlbearGateway, type PanelTheme, type Role } from "../src/owlbear/gateway";
 import { createEmptyState } from "../src/state/schema";
 import { useAppStore } from "../src/state/store";
 
@@ -35,8 +35,10 @@ class FakeGateway implements OwlbearGateway {
   async getSelectedToken() { return null; }
   async consumePendingToken() { return null; }
   onPendingToken() { return () => undefined; }
-  async getThemeMode(): Promise<ThemeMode> { return "DARK"; }
+  async getTheme(): Promise<PanelTheme> { return FALLBACK_THEMES.DARK; }
   onThemeChange() { return () => undefined; }
+  async setActionHeight() {}
+  async focusToken() {}
   async setBadge() {}
 }
 

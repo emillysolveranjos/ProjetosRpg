@@ -2,25 +2,20 @@ import { useRef, useState } from "react";
 import type { CombatantState, DamageComponent, Marker, MarkerDisplayLayout, RulebearSceneState, TokenDisplayOverride, TokenView, Viewer } from "../domain/types";
 import { allowed, markerEditable, markerNumbers, markerText, markerVisible, permitted } from "../domain/access";
 import { useAppStore } from "../state/store";
+import { hpColor } from "../domain/colors";
 import { AccessEditor } from "./AccessEditor";
 import { MarkerEditor } from "./MarkerEditor";
 import { blankDamageComponent, DamageComponentRows, ReductionEditor } from "./RuleEditors";
 import { Dialog, TokenPortrait } from "./Shared";
+import { Icon } from "./Icon";
 
 interface Props {
   combatant: CombatantState; token?: TokenView; state: RulebearSceneState; viewer: Viewer;
   readOnly: boolean; previewing: boolean; expanded: boolean; onExpand(): void; onToggle(): void;
   editingInitiative: boolean; onEditInitiative(editing: boolean): void; onInitiativeSaved(): void;
 }
-const DEFAULT_HP_COLOR = "#d94848";
-// A cor padrão do HP vira um indicador de saúde; cores escolhidas pelo mestre são respeitadas.
-export function hpColor(color: string, value: number, maximum: number): string {
-  if (color.toLowerCase() !== DEFAULT_HP_COLOR) return color;
-  const ratio = value / maximum;
-  return ratio > .5 ? "#3fae6a" : ratio > .25 ? "#e0a21b" : DEFAULT_HP_COLOR;
-}
 export function CompactCard({ combatant: c, token, state, viewer, readOnly, previewing, expanded, onExpand, onToggle, editingInitiative, onEditInitiative, onInitiativeSaved }: Props) {
-  const { command, preferences, setPreferences } = useAppStore();
+  const { command, preferences, setPreferences, gateway } = useAppStore();
   const [editor, setEditor] = useState<string | null>(null);
   const [modal, setModal] = useState<"access" | "markers" | "defenses" | null>(null);
   const [conditionId, setConditionId] = useState("");
@@ -54,18 +49,22 @@ export function CompactCard({ combatant: c, token, state, viewer, readOnly, prev
     const text = markerText(m, c, viewer);
     const fill = Math.max(0, Math.min(100, value / maximum * 100));
     const over = m.hp && value > maximum ? Math.min(100, (value - maximum) / maximum * 100) : 0;
+    const description = m.description?.trim();
     const contents = m.kind === "bar" ? <>{!m.hp && <span className="bar-name">{m.name}</span>}<span className="hp-track panel-hp-track"><span className="hp-fill" style={{ width: `${fill}%`, background: m.hp ? hpColor(m.color, value, maximum) : m.color }} />{over > 0 && <span className="hp-over" style={{ width: `${over}%` }} />}<strong>{text}</strong></span></> : <span className="marker-caption"><span>{m.name}</span><strong>{text}</strong></span>;
-    return editable ? <button className={`resource-value ${m.kind === "bar" ? "bar-value" : "badge-value"}`} key={m.id} aria-label={`${m.hp ? "Ações de HP" : "Ajustar " + m.name}: ${markerText(m, c, viewer)}`} title={m.hp ? "Dano, cura ou ajuste" : undefined} onClick={() => open(m.id)}>{contents}</button> : <div className={`resource-value readonly ${m.kind === "bar" ? "bar-value" : "badge-value"}`} key={m.id}>{contents}</div>;
+    const className = `resource-value ${m.kind === "bar" ? "bar-value" : "badge-value"} ${description ? "has-description" : ""}`;
+    // A descrição aparece ao passar o mouse; no toque, ela fica visível nos detalhes do cartão.
+    const title = [m.hp && editable ? "Dano, cura ou ajuste" : "", description ?? ""].filter(Boolean).join(" · ") || undefined;
+    return editable ? <button className={className} key={m.id} aria-label={`${m.hp ? "Ações de HP" : "Ajustar " + m.name}: ${markerText(m, c, viewer)}`} aria-description={description} title={title} onClick={() => open(m.id)}>{contents}</button> : <div className={`${className} readonly`} key={m.id} title={title}>{contents}</div>;
   };
   const hpMarker = markers.find((m) => m.hp), otherMarkers = markers.filter((m) => !m.hp);
   const down = !!hpMarker && c.currentHp <= 0;
-  return <article className={`combatant-card compact-card ${active ? "active" : ""} ${down ? "down" : ""}`} aria-label={token?.name ?? "Combatente"}>
+  return <article className={`combatant-card compact-card ${active ? "active" : ""} ${down ? "down" : ""}`} aria-label={token?.name ?? "Combatente"} data-token={c.tokenId}>
     <div className="combatant-main">
       {(showInitiative || canInitiative) && (editingInitiative && canInitiative ? <InitiativeInput combatant={c} showValue={showInitiative} disabled={readOnly} onCancel={() => onEditInitiative(false)} onSaved={onInitiativeSaved} /> : canInitiative ? <button className={`initiative-badge ${initiativeLabel === null ? "empty" : ""}`} aria-label="Editar iniciativa" title="Iniciativa · clique para editar" onClick={() => onEditInitiative(true)}>{initiativeLabel ?? <small>INI</small>}</button> : <span className={`initiative-badge ${initiativeLabel === null ? "empty" : ""}`} title="Iniciativa">{initiativeLabel ?? <small>INI</small>}</span>)}
-      <TokenPortrait token={token} />
+      {token ? <button className="portrait-button" title="Mostrar no mapa" aria-label={`Mostrar ${token.name} no mapa`} onClick={() => void gateway?.focusToken(c.tokenId).catch(() => {})}><TokenPortrait token={token} /></button> : <TokenPortrait token={token} />}
       <div className="combatant-info"><div className="name-row"><h2 title={token?.name}>{token?.name ?? "Token removido"}</h2>{active && <span className="turn-chip">EM TURNO</span>}{down && <span className="down-chip">CAÍDO</span>}</div>
         {hpMarker && renderMarker(hpMarker)}
-      </div><button className="icon-button details-toggle" aria-label={`Detalhes de ${token?.name ?? "combatente"}`} aria-expanded={expanded} aria-controls={`details-${c.tokenId}`} onClick={onToggle}>{expanded ? "−" : "⋯"}</button></div>
+      </div><button className="icon-button details-toggle" aria-label={`Detalhes de ${token?.name ?? "combatente"}`} aria-expanded={expanded} aria-controls={`details-${c.tokenId}`} title={expanded ? "Recolher" : "Ações e detalhes"} onClick={onToggle}><Icon name={expanded ? "expandLess" : "expandMore"} /></button></div>
     {otherMarkers.length > 0 && <div className="compact-markers">{otherMarkers.map(renderMarker)}</div>}
     {showConditions && c.conditions.length > 0 && <div className="condition-list">{c.conditions.map((a) => <span className="condition-chip" key={a.id}>{state.conditionDefinitions.find((d) => d.id === a.definitionId)?.name ?? "Condição"}{a.stacks > 1 && ` ×${a.stacks}`}{a.remainingTicks !== undefined && ` · ${a.remainingTicks}t`}</span>)}</div>}
     {active && !gm && permitted(c, viewer, "endTurn") && <button className="end-own-turn" disabled={readOnly} onClick={() => void command({ type: "advance" })}>Encerrar meu turno →</button>}
@@ -82,6 +81,7 @@ export function CompactCard({ combatant: c, token, state, viewer, readOnly, prev
         }}><label>Condição<select value={conditionId} onChange={(e) => setConditionId(e.target.value)}><option value="">Escolher…</option>{state.conditionDefinitions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label><label>Operação<select value={conditionOperation} onChange={(e) => setConditionOperation(e.target.value as typeof conditionOperation)}><option value="APPLY">Aplicar</option><option value="INCREASE">Aumentar stacks</option><option value="DECREASE">Diminuir stacks</option><option value="REMOVE">Remover</option></select></label><button className="button" disabled={readOnly || !conditionId}>Executar</button></form>}
         {!showConditions && canConditions && <p className="muted">As condições aplicadas estão ocultas. A operação será executada sem revelar stacks ou duração.</p>}
       </div>}
+      {markers.some((m) => m.description?.trim()) && <dl className="marker-notes" aria-label="Descrição dos marcadores">{markers.filter((m) => m.description?.trim()).map((m) => <div key={m.id}><dt><span className="marker-dot" style={{ background: m.color }} />{m.name}{m.mapLabel?.trim() && m.mapLabel.trim() !== m.name ? <small> · {m.mapLabel.trim()} no mapa</small> : null}</dt><dd>{m.description}</dd></div>)}</dl>}
       <details className="personal-view" open={!!Object.keys(displayOverride).length}><summary>Marcadores deste token na minha tela{Object.keys(displayOverride).length > 0 && <b> · personalizado</b>}</summary><p className="muted">Só muda sua tela; vazio usa seu padrão da engrenagem.</p><div className="token-display-options" aria-label="Marcadores só na minha tela"><label>Posição vertical<select disabled={previewing} value={displayOverride.position ?? ""} onChange={(e) => setDisplayOverride("position", e.target.value as "" | MarkerDisplayLayout["position"])}><option value="">Usar meu padrão</option><option value="TOP">Acima</option><option value="BOTTOM">Abaixo</option></select></label><label>Alinhamento<select disabled={previewing} value={displayOverride.horizontal ?? ""} onChange={(e) => setDisplayOverride("horizontal", e.target.value as "" | MarkerDisplayLayout["horizontal"])}><option value="">Usar meu padrão</option><option value="LEFT">Esquerda</option><option value="CENTER">Centro</option><option value="RIGHT">Direita</option></select></label><label>Tamanho<select disabled={previewing} value={displayOverride.size ?? ""} onChange={(e) => setDisplayOverride("size", e.target.value as "" | MarkerDisplayLayout["size"])}><option value="">Usar meu padrão</option><option value="SMALL">Pequeno</option><option value="MEDIUM">Médio</option><option value="LARGE">Grande</option></select></label></div></details>
       {gm && <details className="admin-actions"><summary>Ordem, acesso e marcadores</summary><div className="button-row"><button className="button" disabled={readOnly || index === 0} onClick={() => move(-1)}>↑ Subir na ordem</button><button className="button" disabled={readOnly || index === state.encounter.order.length - 1} onClick={() => move(1)}>↓ Descer na ordem</button>{!state.activeTokenId && <button className="button" disabled={readOnly} onClick={() => void command({ type: "start", tokenId: c.tokenId })}>▶ Iniciar turno aqui</button>}<button className="button" onClick={() => setModal("access")}>⚙ Acesso</button><button className="button" onClick={() => setModal("markers")}>◫ Marcadores</button><button className="button danger subtle" disabled={readOnly} onClick={() => { if (confirm(`Remover ${token?.name ?? "este combatente"} da Rulebear?`)) void command({ type: "remove", tokenId: c.tokenId }); }}>Excluir combatente</button></div></details>}
     </section>}
@@ -123,7 +123,7 @@ function ValueEditor({ marker: m, combatant: c, disabled }: { marker: Marker; co
   const [expression, setExpression] = useState(""); const command = useAppStore((s) => s.command);
   if (m.kind === "checkbox") return <label className="check"><input type="checkbox" checked={m.checked} disabled={disabled} onChange={(e) => void command({ type: "markerValue", tokenId: c.tokenId, markerId: m.id, checked: e.target.checked })} />{m.name}</label>;
   const adjust = (value: string) => command({ type: "markerValue", tokenId: c.tokenId, markerId: m.id, expression: value });
-  return <form className="quick-form context-editor" onSubmit={(e) => { e.preventDefault(); if (!disabled) void adjust(expression).then((ok) => { if (ok) setExpression(""); }); }}><label>Ajustar {m.name}<input value={expression} onChange={(e) => setExpression(e.target.value)} placeholder="=10, +2, -3…" /></label>{m.kind === "counter" && <div className="counter-controls"><button type="button" aria-label={`Diminuir ${m.name}`} disabled={disabled} onClick={() => void adjust("-1")}>−</button><button type="button" aria-label={`Aumentar ${m.name}`} disabled={disabled} onClick={() => void adjust("+1")}>+</button></div>}<button className="button" disabled={disabled || !expression.trim()}>Aplicar</button></form>;
+  return <form className="quick-form context-editor" onSubmit={(e) => { e.preventDefault(); if (!disabled) void adjust(expression).then((ok) => { if (ok) setExpression(""); }); }}><label>Ajustar {m.name}{m.description?.trim() && <small className="field-help marker-help">{m.description}</small>}<input value={expression} onChange={(e) => setExpression(e.target.value)} placeholder="=10, +2, -3…" /></label>{m.kind === "counter" && <div className="counter-controls"><button type="button" aria-label={`Diminuir ${m.name}`} disabled={disabled} onClick={() => void adjust("-1")}>−</button><button type="button" aria-label={`Aumentar ${m.name}`} disabled={disabled} onClick={() => void adjust("+1")}>+</button></div>}<button className="button" disabled={disabled || !expression.trim()}>Aplicar</button></form>;
 }
 function InitiativeInput({ combatant: c, showValue, disabled, onCancel, onSaved }: { combatant: CombatantState; showValue: boolean; disabled: boolean; onCancel(): void; onSaved(): void }) {
   const initial = showValue && c.initiative !== null ? String(c.initiative) : "";

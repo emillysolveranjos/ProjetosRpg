@@ -20,7 +20,8 @@ describe("menu de contexto em GitHub Pages", () => {
     expect(create).toHaveBeenCalledWith(expect.objectContaining({
       icons: [expect.objectContaining({
         icon: "https://emillysolveranjos.github.io/ProjetosRpg/action-icon.svg",
-        filter: expect.objectContaining({ roles: ["GM"] }),
+        label: "Abrir na Rulebear",
+        filter: expect.not.objectContaining({ roles: expect.anything() }),
       })],
     }));
   });

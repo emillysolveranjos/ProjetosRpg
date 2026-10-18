@@ -74,7 +74,8 @@ describe("marcadores locais", () => {
     await gm.sendMessage({ type: "preferences", playerId: "gm" }); await settle();
     const background = api.locals.find((i) => String(i.id).endsWith("/bg"))!;
     expect(background.width).toBe(135);
-    expect((background.position as { x: number }).x).toBe(0);
+    // LEFT encosta o conjunto na borda esquerda por dentro: âncora no centro de uma barra de 135.
+    expect((background.position as { x: number }).x).toBe(67.5);
     expect((background.position as { y: number }).y).toBeCloseTo(108.775);
     expect(api.reads).toBe(reads);
     expect(n.writes).toBe(0);
@@ -156,7 +157,9 @@ describe("âncoras dos rótulos no SDK", () => {
             return { left: anchor.x - width / 2, right: anchor.x + width / 2, top: anchor.y - height, width, height };
           };
           const bg = rect("/bg"), fill = rect("/fill"), text = rect("/label");
-          expect((bg.left + bg.right) / 2).toBe(horizontal === "LEFT" ? 200 : horizontal === "RIGHT" ? 400 : 300);
+          if (horizontal === "LEFT") expect(bg.left).toBeCloseTo(200);
+          else if (horizontal === "RIGHT") expect(bg.right).toBeCloseTo(400);
+          else expect((bg.left + bg.right) / 2).toBeCloseTo(300);
           expect(bg.top + bg.height / 2).toBeCloseTo(position === "TOP" ? 300 : 500);
           expect(fill.left).toBeCloseTo(bg.left);
           expect(fill.top).toBeCloseTo(bg.top);

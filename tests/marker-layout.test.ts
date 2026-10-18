@@ -24,14 +24,51 @@ describe("layout compacto no mapa", () => {
       expect(badge.text).toBe("0");
     }
   });
-  it("alinha o conjunto na borda esquerda, centro ou borda direita", () => {
+  it("alinha o conjunto por dentro da borda esquerda, do centro ou da borda direita", () => {
     const c = combatant();
-    const left = markerLayout(c, viewer, bounds, layout({ horizontal: "LEFT" })).find((l) => l.key === "hp/bg")!;
-    const center = markerLayout(c, viewer, bounds, layout()).find((l) => l.key === "hp/bg")!;
-    const right = markerLayout(c, viewer, bounds, layout({ horizontal: "RIGHT" })).find((l) => l.key === "hp/bg")!;
-    expect(left).toMatchObject({ x: -50, width: 100 });
-    expect(center).toMatchObject({ x: 0, width: 100 });
-    expect(right).toMatchObject({ x: 50, width: 100 });
+    const hp = (horizontal: MarkerDisplayLayout["horizontal"]) => markerLayout(c, viewer, bounds, layout({ horizontal, size: "SMALL" })).find((l) => l.key === "hp/bg")!;
+    expect(hp("LEFT")).toMatchObject({ x: 0, width: 75 });
+    expect(hp("CENTER")).toMatchObject({ x: 12.5, width: 75 });
+    expect(hp("RIGHT")).toMatchObject({ x: 25, width: 75 });
+    // No tamanho médio a barra ocupa a largura do token e nunca invade o vizinho.
+    for (const horizontal of ["LEFT", "CENTER", "RIGHT"] as const) expect(markerLayout(c, viewer, bounds, layout({ horizontal })).find((l) => l.key === "hp/bg")).toMatchObject({ x: 0, width: 100 });
+  });
+  it("alinha cada linha de bolinhas conforme o alinhamento escolhido", () => {
+    const c = combatant();
+    const badge = (horizontal: MarkerDisplayLayout["horizontal"]) => markerLayout(c, viewer, bounds, layout({ horizontal })).find((l) => l.key === "counter/label")!;
+    expect(badge("LEFT").x).toBe(0);
+    expect(badge("CENTER").x + badge("CENTER").width / 2).toBeCloseTo(50);
+    expect(badge("RIGHT").x + badge("RIGHT").width).toBeCloseTo(100);
+  });
+  it("mantém no máximo duas linhas sobre a arte e leva as demais para fora, depois das barras", () => {
+    const c = combatant();
+    for (let i = 0; i < 10; i++) c.markers.push({ ...c.markers[1]!, id: "extra" + i, mapLabel: "CA", value: 10 + i });
+    for (const position of ["BOTTOM", "TOP"] as const) {
+      const labels = markerLayout(c, viewer, bounds, layout({ position }));
+      const hp = labels.find((l) => l.key === "hp/bg")!;
+      const badges = labels.filter((l) => l.key.endsWith("/label") && !l.key.startsWith("hp/"));
+      const inside = badges.filter((b) => position === "BOTTOM" ? b.y + b.height <= hp.y : b.y >= hp.y + hp.height);
+      const outside = badges.filter((b) => position === "BOTTOM" ? b.y >= hp.y + hp.height : b.y + b.height <= hp.y);
+      expect(new Set(inside.map((b) => b.y)).size).toBe(2);
+      expect(outside.length).toBeGreaterThan(0);
+      expect(inside.length + outside.length).toBe(badges.length);
+    }
+  });
+  it("cabem duas siglas lado a lado num token de uma célula", () => {
+    const c = addCombatant(createEmptyState(), "a", 20, 20).combatants.a!;
+    c.markers.push({ ...c.markers[0]!, hp: false, id: "ca", kind: "number", mapLabel: "CA", value: 15 }, { ...c.markers[0]!, hp: false, id: "def", kind: "number", mapLabel: "DEF", value: 12 });
+    const cell = { min: { x: 0, y: 0 }, max: { x: 150, y: 150 }, center: { x: 75, y: 75 }, width: 150 };
+    const labels = markerLayout(c, viewer, cell, layout());
+    expect(labels.find((l) => l.key === "ca/label")!.y).toBe(labels.find((l) => l.key === "def/label")!.y);
+  });
+  it("usa as cores de saúde na barra de HP padrão e o fundo neutro em marcações desligadas", () => {
+    const c = combatant(); c.currentHp = 15;
+    c.markers.push({ ...c.markers[1]!, id: "check", kind: "checkbox", checked: false, color: "#c05621" });
+    const labels = markerLayout(c, viewer, bounds, layout());
+    expect(labels.find((l) => l.key === "hp/fill")!.color).toBe("#2e8b57");
+    expect(labels.find((l) => l.key === "check/label")).toMatchObject({ text: "◯", color: "#202b30" });
+    c.markers.find((m) => m.id === "check")!.checked = true;
+    expect(markerLayout(c, viewer, bounds, layout()).find((l) => l.key === "check/label")).toMatchObject({ text: "✓", color: "#c05621" });
   });
   it("dimensiona barras, texto, círculos e espaçamento em 0,75×, 1× e 1,35×", () => {
     const c = combatant();
@@ -63,7 +100,7 @@ describe("layout compacto no mapa", () => {
     expect(labels[0]!.key).toBe(c.markers[1]!.id + "/bg");
     expect(labels.find((l) => l.key === "mana/fill")!.width).toBe(135);
     expect(labels.find((l) => l.key === "mana/label")!.text).toBe("30/10");
-    expect(labels.find((l) => l.key === "hp/bg")!.x).toBe(32.5);
+    expect(labels.find((l) => l.key === "hp/bg")!.x).toBe(-35);
     expect(labels.find((l) => l.key === "hp/bg")!.y).toBe(-8.775);
     expect(labels.find((l) => l.key === "mana/bg")!.y).toBeLessThan(labels.find((l) => l.key === "hp/bg")!.y);
     c.markers[0]!.value = -5;

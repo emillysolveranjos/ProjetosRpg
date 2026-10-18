@@ -1,7 +1,8 @@
 import OBR, { buildLabel, isImage, type Item } from "@owlbear-rodeo/sdk";
 import { STATE_KEY, PLUGIN_ID } from "../config";
 import { parseSceneState } from "../state/schema";
-import { markerVisible, markerNumbers, markerText, visibleCombatant } from "../domain/access";
+import { markerVisible, markerNumbers, markerMapText, visibleCombatant } from "../domain/access";
+import type { CombatantState, MarkerDisplayLayout, Viewer } from "../domain/types";
 import { readPreferences, tokenDisplayLayout } from "../state/preferences";
 import type { OwlbearGateway } from "../owlbear/gateway";
 import { markerLayout, type Bounds, type OverlayLabel } from "./marker-layout";
@@ -12,7 +13,7 @@ const isOwn = (item: Item) => item.metadata[OWNER_KEY] === true || item.id.start
 interface CachedToken { geometry: string; signature: string; bounds: Bounds; labels: OverlayLabel[] }
 // Layout coordinates are top-left; a DOWN label is anchored at bottom-center.
 // Lock screen-space compensation so label dimensions stay in scene units.
-function build(tokenId: string, label: OverlayLabel): Item {
+export function buildOverlayItem(tokenId: string, label: OverlayLabel): Item {
   return {
     ...buildLabel().id(`${PLUGIN_ID}/${tokenId}/${label.key}`).name(label.name).plainText(label.text)
       .fontSize(label.fontSize).fontWeight(700).fontFamily("sans-serif").lineHeight(1).textAlign("CENTER").textAlignVertical("MIDDLE")
@@ -22,6 +23,14 @@ function build(tokenId: string, label: OverlayLabel): Item {
     attachedTo: tokenId, locked: true, disableHit: true, layer: "ATTACHMENT", zIndex: label.zIndex,
     disableAttachmentBehavior: ["ROTATION", "SCALE"], metadata: { [OWNER_KEY]: true, [VERSION_KEY]: 3 },
   };
+}
+/** Mesma regra do mapa real: tokens invisíveis e combatentes ocultos não mostram marcadores aos jogadores. */
+export function overlayAllowed(token: { visible: boolean }, c: CombatantState | undefined, viewer: Viewer): c is CombatantState {
+  return !!c && (token.visible || viewer.role === "GM") && visibleCombatant(c, viewer);
+}
+/** Itens de etiqueta de um token; usado pelo mapa real e pela prévia local (map-preview.html). */
+export function overlayItems(tokenId: string, c: CombatantState, viewer: Viewer, bounds: Bounds, layout: MarkerDisplayLayout): Item[] {
+  return markerLayout(c, viewer, bounds, layout).map((label) => buildOverlayItem(tokenId, label));
 }
 export function startOverlays(gateway: OwlbearGateway): () => void {
   let disposed = false, dirty = false, running = false, generation = 0, sceneId = "", refresh = true;
@@ -47,14 +56,14 @@ export function startOverlays(gateway: OwlbearGateway): () => void {
     const seen = new Set<string>();
     if (state) {
       const viewer = await gateway.getSelf(), prefs = readPreferences(gateway.getRoomId(), viewer.id);
-      const tokens = (await OBR.scene.items.getItems()).filter(isImage).filter((t) => t.layer === "CHARACTER" && (t.visible || viewer.role === "GM"));
+      const tokens = (await OBR.scene.items.getItems()).filter(isImage).filter((t) => t.layer === "CHARACTER");
       if (!current()) return;
       for (const token of tokens) {
         const c = state.combatants[token.id];
-        if (!c || !visibleCombatant(c, viewer)) continue;
+        if (!overlayAllowed(token, c, viewer)) continue;
         const layout = tokenDisplayLayout(prefs, state.sceneId, token.id);
         const geometry = JSON.stringify([token.position, token.rotation, token.scale, token.image, token.grid]);
-        const signature = JSON.stringify([layout, c.markers.filter((m) => m.onMap && markerVisible(m, c, viewer)).map((m) => [m.id, m.name, m.kind, m.hp, m.color, markerText(m, c, viewer), m.kind === "bar" ? markerNumbers(m, c) : null])]);
+        const signature = JSON.stringify([layout, c.markers.filter((m) => m.onMap && markerVisible(m, c, viewer)).map((m) => [m.id, m.name, m.kind, m.hp, m.color, markerMapText(m, c, viewer), m.kind === "bar" ? markerNumbers(m, c) : null])]);
         let entry = cache.get(token.id);
         if (!entry || entry.geometry !== geometry || entry.signature !== signature) {
           const bounds = entry?.geometry === geometry ? entry.bounds : await OBR.scene.items.getItemBounds([token.id]);
@@ -79,7 +88,7 @@ export function startOverlays(gateway: OwlbearGateway): () => void {
     for (const [entries, update] of [[additions, false], [updates, true]] as const) {
       for (let i = 0; i < entries.length; i += 100) {
         if (!current()) return;
-        const batch = entries.slice(i, i + 100), items = batch.map(([, d]) => build(d.tokenId, d.label));
+        const batch = entries.slice(i, i + 100), items = batch.map(([, d]) => buildOverlayItem(d.tokenId, d.label));
         if (update) await OBR.scene.local.updateItems(items.map((item) => item.id), (drafts) => {
           const byId = new Map(items.map((item) => [item.id, item]));
           drafts.forEach((draft) => { const item = byId.get(draft.id); if (item) Object.assign(draft, item); });

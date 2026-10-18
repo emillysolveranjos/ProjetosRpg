@@ -1,4 +1,4 @@
-# Arquitetura da Rulebear 2.5
+# Arquitetura da Rulebear 2.6
 
 O histórico mantém detalhes estruturados por componente, inclusive efeitos automáticos e os dois lados do avanço de turno. Cada detalhe guarda token, origem, tipos, dano bruto, RD total, penetração, imunidade e dano final. Jogadores só recebem esses detalhes na interface quando têm acesso ao histórico, às defesas e ao HP completo do token; efeitos também exigem condições visíveis. Resumos antigos continuam genéricos para jogadores. A filtragem é refeita com as permissões atuais.
 
@@ -24,7 +24,7 @@ Metadata de cena, itens e jogadores é compartilhada. As restrições são contr
 
 ## Comandos e coordenação
 
-Canal de broadcast `io.github.samuelsanjos.rulebear/v2`. O SDK informa connectionId; o receptor resolve ID e papel usando a lista de participantes, sem confiar no papel enviado no payload. O protocolo de comandos está na versão 6; o canal continua estável para que clientes incompatíveis recebam a orientação de recarregar.
+Canal de broadcast `io.github.samuelsanjos.rulebear/v2`. O SDK informa connectionId; o receptor resolve ID e papel usando a lista de participantes, sem confiar no papel enviado no payload. O protocolo de comandos está na versão 7 (a 2.6 acrescentou `mapLabel` e `description` opcionais aos marcadores; um coordenador antigo os descartaria ao validar, por isso o protocolo subiu sem mudar o schema v6); o canal continua estável para que clientes incompatíveis recebam a orientação de recarregar.
 
 Backgrounds anunciam presença a cada 1,5 segundo. Entre GMs presentes, o menor connectionId é coordenador. Presenças expiram após 6,5 segundos; mudanças de coordenador exigem estabilização de 2,2 segundos e releitura da cena. Uma sessão aleatória distingue reinícios na mesma conexão. Mudanças de papel/conexão atualizam a eleição.
 
@@ -51,7 +51,7 @@ O importador interpreta os quatro tipos do namespace `com.owl-trackers/trackers`
 
 Somente o coordenador grava migrações v1 a v5. Primeiro valida e cria um backup JSON no localStorage do mestre, separado por sala e mantendo os backups de cenas anteriores. Se o backup falhar, não grava v6. A exportação no painel permite conservar os dados originais fora do navegador.
 
-Migração v1 cria acesso privado, ordem pela sequência existente, iniciativas nulas e rodada 1 se já havia turno ativo. Em v2/v3, permissões booleanas habilitadas viram listas com os responsáveis atuais; edição antiga da barra HP vira ajuste do atual, e ajuste do máximo começa bloqueado. Categorias textuais de v1–v4 são normalizadas para IDs. Na passagem v5→v6, defesas e presets tornam-se reduções fixas, `bypassReductions` torna-se `ignoreImmunity` e nenhuma penetração é criada. Efeitos antigos com vários tipos permanecem híbridos. Combatentes, condições e snapshots de Undo são convertidos pela mesma rotina. Não há downgrade automático; clientes antigos são rejeitados pelo protocolo 6 e recebem orientação para recarregar.
+Migração v1 cria acesso privado, ordem pela sequência existente, iniciativas nulas e rodada 1 se já havia turno ativo. Em v2/v3, permissões booleanas habilitadas viram listas com os responsáveis atuais; edição antiga da barra HP vira ajuste do atual, e ajuste do máximo começa bloqueado. Categorias textuais de v1–v4 são normalizadas para IDs. Na passagem v5→v6, defesas e presets tornam-se reduções fixas, `bypassReductions` torna-se `ignoreImmunity` e nenhuma penetração é criada. Efeitos antigos com vários tipos permanecem híbridos. Combatentes, condições e snapshots de Undo são convertidos pela mesma rotina. Não há downgrade automático; clientes antigos são rejeitados pelo protocolo 7 e recebem orientação para recarregar.
 
 ## Referências
 

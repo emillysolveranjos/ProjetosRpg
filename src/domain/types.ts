@@ -197,6 +197,10 @@ export interface Marker {
   display: "FULL" | "PERCENT" | "HIDDEN";
   editable: boolean;
   hp?: boolean;
+  /** Sigla curta exibida antes do valor no mapa, como "CA". */
+  mapLabel?: string;
+  /** Explicação do marcador, mostrada no painel. */
+  description?: string;
   value: number;
   maximum: number;
   checked: boolean;

@@ -5,14 +5,17 @@ import { createEmptyState, parseSceneState, isLegacyState, migrateLegacyState } 
 import { CommandClient } from "../owlbear/sync";
 import type { Command } from "../domain/commands";
 import { readPreferences, savePreferences } from "./preferences";
+import { visibleCombatant } from "../domain/access";
+import { applyTheme } from "./theme";
 export type AppStatus = "LOADING" | "OUTSIDE" | "NO_SCENE" | "READY" | "INVALID";
 interface AppStore {
   gateway?: OwlbearGateway; status: AppStatus; role: Role; theme: ThemeMode; self?: Participant;
   participants: Participant[]; online: boolean; busy: boolean; state: RulebearSceneState; tokens: TokenView[];
-  preferences: DisplayPreferences; pendingTokenId?: string; error?: string; notice?: string;
+  preferences: DisplayPreferences; pendingTokenId?: string; focusTokenId?: string; error?: string; notice?: string;
   initialize(gateway?: OwlbearGateway): Promise<() => void>;
   refreshScene(): Promise<void>; command(command: Command, revision?: number): Promise<boolean>;
   requestSelectedToken(): Promise<void>; setPendingToken(tokenId?: string): void; clearMessage(): void;
+  openToken(tokenId: string): void; clearFocus(): void;
   setPreferences(value: DisplayPreferences): void;
 }
 let client: CommandClient | undefined;
@@ -24,9 +27,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!gateway) { set({ status: "OUTSIDE" }); return () => {}; }
     set({ gateway, status: "LOADING", online: false, busy: false, error: undefined });
     await gateway.ready();
-    const [self, theme, participants] = await Promise.all([gateway.getSelf(), gateway.getThemeMode(), gateway.getParticipants()]);
-    set({ self, role: self.role, theme, participants, preferences: readPreferences(gateway.getRoomId(), self.id) });
-    document.documentElement.dataset.theme = theme.toLowerCase();
+    const [self, theme, participants] = await Promise.all([gateway.getSelf(), gateway.getTheme(), gateway.getParticipants()]);
+    set({ self, role: self.role, theme: theme.mode, participants, preferences: readPreferences(gateway.getRoomId(), self.id) });
+    applyTheme(theme);
     const instance = new CommandClient(gateway, (online) => set({ online }), (error) => set({ error }));
     client = instance;
     await get().refreshScene();
@@ -39,11 +42,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       gateway.onSceneStateChange(() => void get().refreshScene()),
       gateway.onItemsChange((tokens) => set({ tokens })),
       gateway.onParticipantsChange(() => void updateParty().catch(() => set({ online: false }))),
-      gateway.onThemeChange((theme) => { document.documentElement.dataset.theme = theme.toLowerCase(); set({ theme }); }),
-      gateway.onPendingToken((tokenId) => { if (get().role === "GM") set({ pendingTokenId: tokenId }); }),
+      gateway.onThemeChange((theme) => { applyTheme(theme); set({ theme: theme.mode }); }),
+      gateway.onPendingToken((tokenId) => get().openToken(tokenId)),
     ];
     const pending = await gateway.consumePendingToken();
-    if (pending && self.role === "GM") set({ pendingTokenId: pending });
+    if (pending) get().openToken(pending);
     return () => { unsubscribers.forEach((off) => off()); instance.dispose(); if (client === instance) client = undefined; };
   },
   async refreshScene() {
@@ -78,6 +81,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ pendingTokenId: token.id });
   },
   setPendingToken(pendingTokenId) { set({ pendingTokenId }); },
+  // "Abrir na Rulebear" no menu do token: mostra o cartão ou, para o mestre, oferece adicionar.
+  openToken(tokenId) {
+    const { state, self, tokens } = get(); if (!self) return;
+    const combatant = state.combatants[tokenId];
+    const shown = !!combatant && visibleCombatant(combatant, self) && (self.role === "GM" || tokens.some((t) => t.id === tokenId && t.visible !== false));
+    if (shown) set({ focusTokenId: tokenId, pendingTokenId: undefined });
+    else if (self.role === "GM") set({ pendingTokenId: tokenId });
+    else set({ notice: undefined, error: "Este token não está liberado para você na Rulebear." });
+  },
+  clearFocus() { set({ focusTokenId: undefined }); },
   clearMessage() { set({ error: undefined, notice: undefined }); },
   setPreferences(preferences) {
     const { self, gateway } = get(); if (!self || !gateway) return;

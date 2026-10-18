@@ -3,7 +3,7 @@ import { createEmptyState } from "../state/schema";
 import { addCombatant } from "../domain/engine";
 import { executeCommand, type CommandEnvelope } from "../domain/commands";
 import { PROTOCOL_VERSION } from "./sync";
-import type { OwlbearGateway, Role, ThemeMode } from "./gateway";
+import { FALLBACK_THEMES, type OwlbearGateway, type PanelTheme, type Role } from "./gateway";
 const tokens: TokenView[] = [{ id: "token-urso", name: "Urso-coruja" }, { id: "token-lina", name: "Lina, a Cinzenta" }, { id: "token-goblin", name: "Sentinela goblin" }];
 export class MockOwlbearGateway implements OwlbearGateway {
   private state = addCombatant(addCombatant(createEmptyState(), "token-urso", 31, 48), "token-lina", 22, 28);
@@ -53,7 +53,9 @@ export class MockOwlbearGateway implements OwlbearGateway {
   async getSelectedToken() { return tokens[2] ?? null; }
   async consumePendingToken() { return null; }
   onPendingToken() { return () => {}; }
-  async getThemeMode(): Promise<ThemeMode> { return "DARK"; }
+  async getTheme(): Promise<PanelTheme> { return FALLBACK_THEMES[new URLSearchParams(location.search).get("theme") === "light" ? "LIGHT" : "DARK"]; }
   onThemeChange() { return () => {}; }
   async setBadge() {}
+  async setActionHeight() {}
+  async focusToken() {}
 }

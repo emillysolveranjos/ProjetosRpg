@@ -28,7 +28,7 @@ export type Command =
   | { type: "markerValue"; tokenId: string; markerId: string; expression?: string; checked?: boolean }
   | { type: "template"; template: MarkerTemplate } | { type: "deleteTemplate"; templateId: string }
   | { type: "prune"; tokenIds: string[] } | { type: "undo" };
-export interface CommandEnvelope { protocol: 6; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
+export interface CommandEnvelope { protocol: 7; id: string; sceneId: string; revision: number; coordinator: string; command: Command }
 export function adjustValue(current: number, expression: string): number {
   const match = /^\s*(=|\+|-|\*|\/)?\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(expression);
   if (!match) throw new Error("Use um número, =valor, +valor, -valor, *valor ou /valor.");
