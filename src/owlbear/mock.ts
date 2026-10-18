@@ -1,12 +1,16 @@
 import type { RulebearSceneState, TokenView, Participant } from "../domain/types";
 import { createEmptyState } from "../state/schema";
-import { addCombatant } from "../domain/engine";
+import { addCombatant, saveConditionDefinition, setReductions } from "../domain/engine";
 import { executeCommand, type CommandEnvelope } from "../domain/commands";
 import { PROTOCOL_VERSION } from "./sync";
 import { FALLBACK_THEMES, type OwlbearGateway, type PanelTheme, type Role } from "./gateway";
 const tokens: TokenView[] = [{ id: "token-urso", name: "Urso-coruja" }, { id: "token-lina", name: "Lina, a Cinzenta" }, { id: "token-goblin", name: "Sentinela goblin" }];
 export class MockOwlbearGateway implements OwlbearGateway {
-  private state = addCombatant(addCombatant(createEmptyState(), "token-urso", 31, 48), "token-lina", 22, 28);
+  // Exemplos para a demonstração: uma condição com efeito por turno e uma armadura, para o histórico mostrar todos os casos.
+  private state = setReductions(saveConditionDefinition(addCombatant(addCombatant(createEmptyState(), "token-urso", 31, 48), "token-lina", 22, 28), {
+    id: "sangrando", name: "Sangrando", maximumStacks: 3, duration: { ticks: 2, decrementOn: "TURN_END" },
+    effects: [{ id: "sangrando-dano", trigger: "TURN_START", kind: "DAMAGE", expression: "1d4", damageTypeIds: ["damage-physical"], multiplyByStacks: true, ignoreImmunity: false }],
+  }), "token-urso", [{ id: "couro", label: "Couro grosso", kind: "REDUCTION", amount: 2, damageTypeIds: ["damage-physical"] }]);
   private listeners = new Set<(value: unknown) => void>();
   private messages = new Set<(data: unknown, connectionId: string) => void>();
   private role: Role = new URLSearchParams(location.search).get("role") === "player" ? "PLAYER" : "GM";

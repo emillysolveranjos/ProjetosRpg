@@ -7,7 +7,7 @@ Extensão do [Owlbear Rodeo](https://www.owlbear.rodeo/) para mestres e jogadore
 1. No perfil do Owlbear, abra **Extensions → Add Extension**.
 2. Cole [o link de instalação](https://emillysolveranjos.github.io/ProjetosRpg/manifest.json).
 3. Na sala, habilite **Rulebear** em **Extensions** e abra o botão do urso.
-4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.6.0. A 2.6.0 muda o protocolo de comunicação: versões anteriores na mesma sala ficam bloqueadas até recarregar.
+4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.7.0. A 2.7.0 muda o protocolo de comunicação: versões anteriores na mesma sala ficam bloqueadas até recarregar.
 
 Sem servidor local, conta GitHub ou login adicional. Distribuição por link; não está na loja do Owlbear. Desative instalações locais antigas na sala para não executar duas versões sobre o mesmo encontro.
 
@@ -31,6 +31,12 @@ Clique no quadrado de iniciativa à esquerda do cartão (**INI** quando vazio) e
 Novos combatentes entram no fim. Remover o ativo pausa o encontro; o mestre escolhe em qual token retomar. **Undo**, exclusivo dos mestres, restaura a última operação e seus efeitos sobre HP, condições, ordem e rodada.
 
 Dano aceita até 12 componentes, como `10 Físico + 1d6 Fogo`. Cada componente resolve separadamente imunidade e RD. **Ignorar imunidade** permite que aquela parcela atravesse imunidades; **Ignorar RD** aceita um número ou dados, como `3` ou `1d6+2`, e desconta o resultado da RD total aplicável. As duas opções podem ser usadas juntas por qualquer jogador autorizado a aplicar dano. O dano pode levar o HP abaixo de zero. Cura soma a partir do valor negativo e para no HP máximo; se o token já tiver sobrevida, a cura preserva esse valor. Iniciativa não possui rolagem nesta versão.
+
+## Histórico
+
+Cada ação vira um cartão com ícone e cor por tipo e uma frase direta: **Goblin levou 9 de dano**, **Lina recuperou 5 de HP**, **Vez de Urso-coruja · Rodada 2**, **Goblin recebeu Sangrando**. Os dados aparecem como peças, por exemplo `🎲 2d6+3 → [4] [5] +3 = 12 · defesa −2`, com o HP antes e depois. No avanço de turno, o cartão mostra quem começa a vez e, embaixo, quem terminou e os efeitos das condições. Ações desfeitas ficam riscadas. Rolagens com mais de 20 dados guardam só os 20 primeiros e o total.
+
+Jogadores veem os acontecimentos dos tokens liberados para eles. Números de dano, cura e HP só aparecem para quem vê o HP completo (e as defesas, no caso de dano); sem esse acesso, o cartão diz apenas que o token levou dano ou recuperou HP. Condições ocultas não aparecem.
 
 ## Biblioteca da cena
 
