@@ -11,14 +11,14 @@ async function register(): Promise<void> {
   const iconUrl = new URL("./action-icon.svg", window.location.href).href;
   await OBR.action.setIcon(iconUrl);
   await OBR.contextMenu.create({
-    id: `${PLUGIN_ID}/add-combatant`,
+    id: `${PLUGIN_ID}/open-token`,
     icons: [{
       icon: iconUrl,
-      label: "Adicionar à Rulebear",
+      // Um item para todos: abre o cartão do token ou, para o mestre, oferece adicioná-lo.
+      label: "Abrir na Rulebear",
       filter: {
         min: 1,
         max: 1,
-        roles: ["GM"],
         every: [
           { key: "type", value: "IMAGE" },
           { key: "layer", value: "CHARACTER" },

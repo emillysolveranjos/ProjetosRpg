@@ -1,7 +1,7 @@
-import OBR, { isImage, type Item, type Metadata } from "@owlbear-rodeo/sdk";
+import OBR, { isImage, Math2, type Item, type Metadata, type Theme } from "@owlbear-rodeo/sdk";
 import { PENDING_TOKEN_KEY, STATE_KEY } from "../config";
 import type { RulebearSceneState, TokenView, Participant } from "../domain/types";
-import type { OwlbearGateway, PendingToken, ThemeMode } from "./gateway";
+import type { OwlbearGateway, PanelTheme, PendingToken } from "./gateway";
 
 function toTokens(items: Item[]): TokenView[] {
   const tokens: TokenView[] = [];
@@ -15,6 +15,10 @@ function toTokens(items: Item[]): TokenView[] {
     });
   }
   return tokens;
+}
+
+function panelTheme(theme: Theme): PanelTheme {
+  return { mode: theme.mode, primary: theme.primary.main, primaryContrast: theme.primary.contrastText, background: theme.background.default, paper: theme.background.paper, text: theme.text.primary, textSecondary: theme.text.secondary };
 }
 
 function pendingFrom(metadata: Metadata): PendingToken | null {
@@ -111,12 +115,26 @@ export class BrowserOwlbearGateway implements OwlbearGateway {
     });
   }
 
-  async getThemeMode(): Promise<ThemeMode> {
-    return (await OBR.theme.getTheme()).mode;
+  async getTheme(): Promise<PanelTheme> {
+    return panelTheme(await OBR.theme.getTheme());
   }
 
-  onThemeChange(callback: (mode: ThemeMode) => void): () => void {
-    return OBR.theme.onChange((theme) => callback(theme.mode));
+  onThemeChange(callback: (theme: PanelTheme) => void): () => void {
+    return OBR.theme.onChange((theme) => callback(panelTheme(theme)));
+  }
+
+  async setActionHeight(height: number): Promise<void> {
+    await OBR.action.setHeight(height);
+  }
+
+  // Mesmo cálculo da extensão oficial Initiative Tracker para centralizar a câmera.
+  async focusToken(tokenId: string): Promise<void> {
+    if (await OBR.player.getRole() === "GM") await OBR.player.select([tokenId]);
+    const bounds = await OBR.scene.items.getItemBounds([tokenId]);
+    const center = await OBR.viewport.transformPoint(bounds.center);
+    const [width, height, scale] = await Promise.all([OBR.viewport.getWidth(), OBR.viewport.getHeight(), OBR.viewport.getScale()]);
+    const relative = await OBR.viewport.inverseTransformPoint(Math2.subtract(center, { x: width / 2, y: height / 2 }));
+    await OBR.viewport.animateTo({ scale, position: Math2.multiply(relative, -scale) });
   }
 
   async setBadge(count: number): Promise<void> {

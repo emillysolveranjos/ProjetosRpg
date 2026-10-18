@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CombatantState, HorizontalPreference, MarkerSizePreference, PositionPreference, TokenView, Viewer } from "../domain/types";
 import type { OwlbearGateway } from "../owlbear/gateway";
 import { useAppStore } from "../state/store";
@@ -7,10 +7,12 @@ import { CompactCard } from "./CompactCard";
 import "../styles/compact.css";
 import { LibraryDialog } from "./RuleEditors";
 import { Dialog } from "./Shared";
+import { Icon } from "./Icon";
 const send = (command: Parameters<ReturnType<typeof useAppStore.getState>["command"]>[0]) => useAppStore.getState().command(command);
 export function App({ gateway }: { gateway?: OwlbearGateway }) {
   const store = useAppStore();
-  const { status, state, tokens, error, notice, initialize, pendingTokenId, setPendingToken, self, role, online, busy } = store;
+  const { status, state, tokens, error, notice, initialize, pendingTokenId, setPendingToken, focusTokenId, clearFocus, self, role, online, busy } = store;
+  const shell = useRef<HTMLElement>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [initiativeTarget, setInitiativeTarget] = useState<string | null>(null);
   const [preview, setPreview] = useState("");
@@ -25,6 +27,15 @@ export function App({ gateway }: { gateway?: OwlbearGateway }) {
     const timer = setTimeout(() => useAppStore.setState({ notice: undefined }), 3000);
     return () => clearTimeout(timer);
   }, [notice, busy, state.revision]);
+  // "Abrir na Rulebear" no menu do token abre e mostra o cartão correspondente.
+  const [focused, setFocused] = useState<string>();
+  if (focusTokenId !== focused) { setFocused(focusTokenId); if (focusTokenId) setExpanded(focusTokenId); }
+  useEffect(() => {
+    if (!focusTokenId) return;
+    clearFocus();
+    requestAnimationFrame(() => [...document.querySelectorAll<HTMLElement>("[data-token]")].find((el) => el.dataset.token === focusTokenId)?.scrollIntoView?.({ block: "nearest", behavior: "smooth" }));
+  }, [focusTokenId, clearFocus]);
+  usePanelHeight(gateway, shell, status);
   const viewer: Viewer = role === "GM" && preview ? { id: preview, role: "PLAYER" } : self ?? { id: "", role: "PLAYER" };
   const gm = viewer.role === "GM";
   const previewing = role === "GM" && !!preview;
@@ -49,20 +60,20 @@ export function App({ gateway }: { gateway?: OwlbearGateway }) {
   const players = [...new Map(store.participants.filter((p) => p.role === "PLAYER").map((p) => [p.id, p])).values()];
   const knownIds = [...new Set(Object.values(state.combatants).flatMap((c) => [...c.settings.owners, ...Object.values(c.settings.permissions).flat(), ...Object.values(c.settings.visibility).flatMap((v) => v.playerIds), ...c.markers.flatMap((m) => m.audience.playerIds)]))];
   for (const id of knownIds) if (!players.some((p) => p.id === id)) players.push({ id, connectionId: "", role: "PLAYER", name: "Desconectado (" + id.slice(0, 6) + ")" });
-  return <main className="app-shell compact-app">
-    <header className="topbar"><div className="brand-mark">R</div><div className="brand-copy"><span>RULEBEAR</span><strong>{gm ? "Mesa do GM" : "Minha mesa"}</strong></div>{gm && <button className="icon-button" title={undoSummary ? "Desfazer: " + undoSummary : "Nada para desfazer"} aria-label="Desfazer última ação" disabled={readOnly || !state.undo} onClick={() => void send({ type: "undo" })}>↶</button>}<button className="icon-button" title="Preferências visuais" aria-label="Preferências visuais" onClick={() => setDialog("preferences")}>⚙</button></header>
+  return <main className="app-shell compact-app" ref={shell}>
+    <header className="topbar"><div className="panel-heading"><strong className="panel-title">Rulebear</strong><span className="panel-subtitle">{gm ? "Visão do mestre" : "Visão do jogador"}</span></div>{gm && <button className="icon-button" title={undoSummary ? "Desfazer: " + undoSummary : "Nada para desfazer"} aria-label="Desfazer última ação" disabled={readOnly || !state.undo} onClick={() => void send({ type: "undo" })}><Icon name="undo" /></button>}<button className="icon-button" title="Minha visualização" aria-label="Preferências visuais" onClick={() => setDialog("preferences")}><Icon name="settings" /></button></header>
     {previewing && <div className="preview-banner"><span>Prévia de jogador · somente leitura<br /><strong>{players.find((p) => p.id === preview)?.name}</strong></span><button className="button" onClick={() => { setPreview(""); setExpanded(null); }}>Voltar ao mestre</button></div>}
     {!online && <p className="connection-note" role="status">Somente consulta · aguardando mestre e sincronização.</p>}
-    <section className="encounter-strip" aria-label="Encontro"><div><h1>{combatants.length} combatente{combatants.length === 1 ? "" : "s"}</h1><span className="muted">{state.encounter.started ? <>Rodada {state.encounter.round}{activeName && <> · vez de <strong className="active-name">{activeName}</strong></>}</> : "Preparação"}</span></div>{gm && <><button className="button primary" disabled={readOnly || !combatants.length} onClick={() => void send({ type: state.activeTokenId ? "advance" : "start" })}>{state.activeTokenId ? "Próximo →" : state.encounter.started ? "Retomar" : "Iniciar"}</button><button className="icon-button" title="Adicionar token selecionado" aria-label="+ Token selecionado" disabled={readOnly} onClick={() => void store.requestSelectedToken()}>+</button><button className="icon-button" aria-label="Opções do encontro" onClick={() => setDialog("encounter")}>⋯</button></>}</section>
+    <section className="encounter-strip" aria-label="Encontro"><div><h1>{combatants.length} combatente{combatants.length === 1 ? "" : "s"}</h1><span className="muted">{state.encounter.started ? <>Rodada {state.encounter.round}{activeName && <> · vez de <strong className="active-name">{activeName}</strong></>}</> : "Preparação"}</span></div>{gm && <><button className="button primary" disabled={readOnly || !combatants.length} title={state.activeTokenId ? "Encerra o turno atual e começa o próximo" : undefined} onClick={() => void send({ type: state.activeTokenId ? "advance" : "start" })}><Icon name={state.activeTokenId ? "next" : "play"} size={18} />{state.activeTokenId ? "Próximo" : state.encounter.started ? "Retomar" : "Iniciar"}</button><button className="icon-button" title="Adicionar o token selecionado no mapa" aria-label="+ Token selecionado" disabled={readOnly} onClick={() => void store.requestSelectedToken()}><Icon name="add" /></button><button className="icon-button" title="Opções do encontro" aria-label="Opções do encontro" onClick={() => setDialog("encounter")}><Icon name="more" /></button></>}</section>
     {gm && !state.encounter.started && unsorted && <p className="sort-hint">Iniciativas fora de ordem.<button className="text-button" disabled={readOnly} onClick={() => void send({ type: "sort" })}>Ordenar agora</button></p>}
     {!previewing && error && <div className="flash error" role="alert"><span>{error}</span><button aria-label="Dispensar erro" onClick={store.clearMessage}>×</button></div>}
     {state.activeTokenId && !combatants.some((c) => c.tokenId === state.activeTokenId) && <p className="connection-note">Turno em andamento.</p>}
     {state.encounter.paused && <p className="connection-note">Encontro pausado. O mestre escolhe o próximo participante.</p>}
     <section className="roster" aria-label="Combatentes">
-      {!combatants.length && <div className="empty-card"><span className="empty-glyph">◇</span><h2>{gm ? "Ninguém no encontro" : "Nenhum combatente liberado"}</h2><p>{gm ? "Selecione um token de personagem e use o botão +." : "O mestre escolhe quais tokens e informações aparecem para você."}</p></div>}
+      {!combatants.length && <div className="empty-card"><span className="empty-glyph">◇</span><h2>{gm ? "Ninguém no encontro" : "Nenhum combatente liberado"}</h2><p>{gm ? "Clique com o botão direito em um token de personagem e escolha Abrir na Rulebear, ou selecione-o e use o botão +." : "O mestre escolhe quais tokens e informações aparecem para você."}</p></div>}
       {combatants.map((c) => <CompactCard key={state.sceneId + "/" + c.tokenId + "/" + viewer.id + "/" + viewer.role} combatant={c} token={tokens.find((t) => t.id === c.tokenId)} state={state} viewer={viewer} readOnly={readOnly} previewing={previewing} expanded={expanded === c.tokenId} onExpand={() => setExpanded(c.tokenId)} onToggle={() => setExpanded(expanded === c.tokenId ? null : c.tokenId)} editingInitiative={initiativeTarget === c.tokenId} onEditInitiative={(editing) => setInitiativeTarget(editing ? c.tokenId : null)} onInitiativeSaved={() => nextInitiative(c.tokenId)} />)}
     </section>
-    <footer className="footer-bar"><span role="status">{busy ? "Salvando…" : notice && !previewing ? "✓ Salvo" : online ? "Sincronizado" : "Consulta"}</span>{gm && <button className="text-button" onClick={() => setDialog("library")}>Biblioteca</button>}<button className="text-button" onClick={() => setDialog("history")}>Histórico <b>{history.length}</b></button></footer>
+    <footer className="footer-bar"><span role="status" className={`sync-status ${online ? "online" : ""}`} title={online ? "Conectado ao mestre" : "Sem mestre conectado: somente consulta"}>{busy ? "Salvando…" : notice && !previewing ? "Salvo" : online ? "Sincronizado" : "Somente consulta"}</span>{gm && <button className="text-button" title="Condições, tipos de dano e presets de defesa" onClick={() => setDialog("library")}><Icon name="library" size={18} />Biblioteca</button>}<button className="text-button" onClick={() => setDialog("history")}><Icon name="history" size={18} />Histórico <b>{history.length}</b></button></footer>
     {pendingTokenId && gm && <AddDialog token={tokens.find((t) => t.id === pendingTokenId)} onClose={() => setPendingToken()} />}
     {dialog === "library" && gm && <LibraryDialog state={state} onClose={() => setDialog(null)} />}
     {dialog === "encounter" && gm && <Dialog title="Opções do encontro" onClose={() => setDialog(null)}><div className="form-stack"><button className="button" disabled={readOnly || !combatants.length} onClick={() => void send({ type: "sort" }).then((ok) => { if (ok) setDialog(null); })}>Ordenar iniciativa</button><p className="muted">Maior iniciativa primeiro. Ajuste empates nos detalhes do combatente.</p>{state.encounter.started && <button className="button" disabled={readOnly} onClick={() => void send({ type: "stop" }).then((ok) => { if (ok) setDialog(null); })}>Encerrar encontro</button>}</div></Dialog>}
@@ -71,6 +82,26 @@ export function App({ gateway }: { gateway?: OwlbearGateway }) {
       const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "rulebear-backups.json"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     }).catch(() => useAppStore.setState({ error: "Não foi possível exportar os backups." }))}>Baixar backups anteriores à migração</button>}</Dialog>}
   </main>;
+}
+// Altura do popover acompanha o conteúdo, como nas extensões oficiais; janelas usam a altura máxima.
+const MIN_HEIGHT = 200, MAX_HEIGHT = 700;
+function usePanelHeight(gateway: OwlbearGateway | undefined, shell: React.RefObject<HTMLElement | null>, status: string) {
+  useEffect(() => {
+    if (!gateway) return;
+    let last = 0;
+    const update = () => {
+      const dialog = !!document.querySelector(".dialog-backdrop");
+      const content = shell.current ? shell.current.scrollHeight : 320;
+      const height = dialog ? MAX_HEIGHT : Math.round(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, content)));
+      if (height !== last) { last = height; void gateway.setActionHeight(height).catch(() => {}); }
+    };
+    const resize = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(update);
+    if (shell.current) resize?.observe(shell.current);
+    const mutation = new MutationObserver(update);
+    mutation.observe(document.body, { childList: true, subtree: true });
+    update();
+    return () => { resize?.disconnect(); mutation.disconnect(); };
+  }, [gateway, shell, status]);
 }
 function Centered({ title, detail }: { title: string; detail?: string }) { return <main className="centered-state"><div className="brand-mark large">R</div><h1>{title}</h1>{detail && <p>{detail}</p>}</main>; }
 function AddDialog({ token, onClose }: { token?: TokenView; onClose(): void }) {

@@ -1,6 +1,23 @@
-# Validação da Rulebear 2.5.0
+# Validação da Rulebear 2.6.0
 
-## Praticidade e design do painel (2.5.0)
+## Design nativo do Owlbear, sigla e descrição dos marcadores (2.6.0)
+
+Schema v6 sem migração; protocolo sobe para 7, porque coordenadores 2.5 descartariam os campos novos dos marcadores ao validar.
+
+- O painel usa a paleta do tema do Owlbear (`OBR.theme`), fundo transparente dentro do popover, fonte do sistema e ícones Material, seguindo as extensões oficiais Initiative Tracker e Dice.
+- A altura do popover acompanha o conteúdo (`OBR.action.setHeight`), com 700 px quando há uma janela aberta.
+- Marcadores aceitam sigla no mapa (até 5 caracteres, como `CA 15`) e descrição (até 200), exibida como dica e nos detalhes do cartão, respeitando a audiência do marcador.
+- Menu do token **Abrir na Rulebear** para todos os papéis: mostra o cartão; para o mestre, oferece adicionar tokens novos. Jogadores sem acesso recebem aviso genérico.
+- Clicar no retrato centraliza a câmera no token (e seleciona, para o mestre).
+- Textos auxiliares passaram a ter no mínimo 10–11 px.
+- Prévia do mapa sem o Owlbear (`npm run preview:map`): sete grupos de cenários com tokens e mapas próprios, desenhando as mesmas etiquetas enviadas ao SDK.
+- Marcadores no mapa, corrigidos a partir da prévia: alinhamento encostado por dentro do token (antes invadia o vizinho), linhas de bolinhas alinhadas, medida de texto por caractere (duas siglas cabem por linha numa célula), no máximo duas linhas sobre a arte, cores de saúde na barra de HP com tons escuros para o texto branco e marcação desligada com fundo escuro e `◯`.
+
+Validação local em 18/10/2026: lint e tipos passaram; 162 testes passaram em 15 arquivos; build público verificado. Painel conferido no modo de demonstração nos temas escuro e claro em 420 px.
+
+## Validação anterior (2.5.0)
+
+### Praticidade e design do painel
 
 Mudanças somente de interface; schema v6 e protocolo 6 não mudaram, então salas em 2.4.0 continuam compatíveis.
 

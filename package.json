@@ -1,7 +1,7 @@
 {
   "name": "rulebear",
   "private": true,
-  "version": "2.5.0",
+  "version": "2.6.0",
   "type": "module",
   "description": "Extensão nativa do Owlbear Rodeo para iniciativa, dano, cura, condições e bibliotecas de combate.",
   "author": "Zero",
@@ -18,7 +18,8 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "preview:map": "node scripts/preview-map.mjs"
   },
   "dependencies": {
     "@owlbear-rodeo/sdk": "3.1.0",

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CombatantState, Marker } from "../domain/types";
 import { defaultMarker } from "../domain/defaults";
+import { DESCRIPTION_LIMIT, MAP_LABEL_LIMIT } from "../config";
 import { readOwlTrackers, mergeImported, type ImportCandidate } from "../domain/import-trackers";
 import { useAppStore } from "../state/store";
 import { Dialog } from "./Shared";
@@ -37,6 +38,8 @@ export function MarkerEditor({ combatant, onClose }: { combatant: CombatantState
     {error && <p role="alert">{error}</p>}
     {markers.map((m, index) => <fieldset className="marker-editor" key={m.id}><legend>{m.hp ? "HP do combate" : "Marcador " + (index + 1)}</legend>
       <div className="form-grid"><label>Nome<input value={m.name} maxLength={50} onChange={(e) => update(m.id, { name: e.target.value })} /></label><label>Cor<input type="color" value={m.color} onChange={(e) => update(m.id, { color: e.target.value })} /></label></div>
+      <label>Sigla no mapa<input value={m.mapLabel ?? ""} maxLength={MAP_LABEL_LIMIT} placeholder="Ex.: CA" onChange={(e) => update(m.id, { mapLabel: e.target.value.trimStart() || undefined })} /><small className="field-help">Aparece antes do valor na bolinha do token, como “CA 15”. Opcional.</small></label>
+      <label>Descrição<textarea value={m.description ?? ""} maxLength={DESCRIPTION_LIMIT} rows={2} placeholder="Ex.: Classe de Armadura. O ataque acerta se o d20 + bônus for igual ou maior." onChange={(e) => update(m.id, { description: e.target.value || undefined })} /><small className="field-help">Quem vê o marcador lê a descrição no painel. Opcional.</small></label>
       {!m.hp && <label>Tipo<select value={m.kind} onChange={(e) => update(m.id, { kind: e.target.value as Marker["kind"], display: m.display === "PERCENT" ? "FULL" : m.display })}><option value="bar">Barra atual/máximo</option><option value="number">Número</option><option value="counter">Contador</option><option value="checkbox">Marcação</option></select></label>}
       {m.kind === "checkbox" ? <label className="check"><input type="checkbox" checked={m.checked} onChange={(e) => update(m.id, { checked: e.target.checked })} />Marcado</label> : <div className="form-grid"><label>Atual<input type="number" step={m.hp ? "1" : "any"} value={m.hp ? hp : m.value} onChange={(e) => m.hp ? setHp(Number(e.target.value)) : update(m.id, { value: Number(e.target.value) })} /></label>{m.kind === "bar" && <label>Máximo<input type="number" min="1" step={m.hp ? "1" : "any"} value={m.hp ? maxHp : m.maximum} onChange={(e) => m.hp ? setMaxHp(Number(e.target.value)) : update(m.id, { maximum: Number(e.target.value) })} /></label>}</div>}
       <AudienceEditor label="Quem vê este marcador" value={m.audience} players={participants} onChange={(audience) => update(m.id, { audience })} />

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { defaultDamageTypes, defaultMarker, defaultSettings, normalizedDefinitionName } from "../domain/defaults";
+import { DESCRIPTION_LIMIT, MAP_LABEL_LIMIT } from "../config";
 import type { CombatantState, CombatantSettings, ConditionDefinition, DamageTypeDefinition, RulebearSceneState } from "../domain/types";
 
 const HP_LIMIT = 2_147_483_647;
@@ -55,7 +56,7 @@ const legacySceneStateSchema = z.object({
 export const audienceSchema = z.object({ mode: z.enum(["GM", "ALL", "OWNERS", "SELECTED"]), playerIds: z.array(idSchema).max(100) });
 export const markerSchema = z.object({
   id: idSchema, name: z.string().min(1).max(50), kind: z.enum(["bar", "number", "counter", "checkbox"]), color: z.string().regex(/^#[0-9a-fA-F]{6}$/), onMap: z.boolean(), audience: audienceSchema,
-  display: z.enum(["FULL", "PERCENT", "HIDDEN"]), editable: z.boolean(), hp: z.boolean().optional(), value: z.number().finite(), maximum: z.number().finite().positive(), checked: z.boolean(),
+  display: z.enum(["FULL", "PERCENT", "HIDDEN"]), editable: z.boolean(), hp: z.boolean().optional(), mapLabel: z.string().max(MAP_LABEL_LIMIT).optional(), description: z.string().max(DESCRIPTION_LIMIT).optional(), value: z.number().finite(), maximum: z.number().finite().positive(), checked: z.boolean(),
 }).refine((marker) => marker.kind === "bar" || marker.display !== "PERCENT", "Somente barras podem exibir porcentagem.");
 const visibilitySchema = z.object({ identity: audienceSchema, initiative: audienceSchema, defenses: audienceSchema, conditions: audienceSchema, history: audienceSchema });
 const legacySettingsSchema = z.object({ owners: z.array(idSchema).max(100), visibility: visibilitySchema, permissions: z.object({ initiative: z.boolean(), damage: z.boolean(), heal: z.boolean(), conditions: z.boolean(), endTurn: z.boolean() }) });

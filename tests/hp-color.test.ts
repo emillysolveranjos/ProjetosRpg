@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { hpColor } from "../src/action/CompactCard";
-describe("cor da barra de HP no painel", () => {
+import { hpColor } from "../src/domain/colors";
+describe("cor da barra de HP no painel e no mapa", () => {
   it("usa faixas de saúde quando o HP mantém a cor padrão", () => {
     expect(hpColor("#d94848", 30, 48)).toBe("#3fae6a");
     expect(hpColor("#D94848", 24, 48)).toBe("#e0a21b");

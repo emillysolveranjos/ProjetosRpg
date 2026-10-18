@@ -7,13 +7,13 @@ Extensão do [Owlbear Rodeo](https://www.owlbear.rodeo/) para mestres e jogadore
 1. No perfil do Owlbear, abra **Extensions → Add Extension**.
 2. Cole [o link de instalação](https://emillysolveranjos.github.io/ProjetosRpg/manifest.json).
 3. Na sala, habilite **Rulebear** em **Extensions** e abra o botão do urso.
-4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.5.0.
+4. Se já estava instalada, recarregue a sala em todos os participantes para carregar a versão 2.6.0. A 2.6.0 muda o protocolo de comunicação: versões anteriores na mesma sala ficam bloqueadas até recarregar.
 
 Sem servidor local, conta GitHub ou login adicional. Distribuição por link; não está na loja do Owlbear. Desative instalações locais antigas na sala para não executar duas versões sobre o mesmo encontro.
 
 ## Preparar a mesa
 
-- Como mestre, selecione um token da camada **Personagem** e clique em **+ Token selecionado**, ou use o menu de contexto **Adicionar à Rulebear**.
+- Como mestre, selecione um token da camada **Personagem** e clique em **+ Token selecionado**, ou clique com o botão direito no token e escolha **Abrir na Rulebear**.
 - Abra **⋯ no cartão → Acesso**. Atribua os responsáveis, libere nome/participação e marque, no cartão de cada jogador, quais ações ele pode executar.
 - Abra **Marcadores** para configurar HP e até 11 recursos adicionais. Cada marcador tem nome, cor, audiência, exibição e permissão de edição.
 - Use **Engrenagem → Ver como** para conferir a visão de um jogador, sem executar ações por ele.
@@ -46,7 +46,7 @@ Em **Defesas** no cartão do token, escolha um preset e clique em **Adicionar ao
 
 Clique na **barra de HP** e digite o valor: **Enter** aplica dano (aceita dados, como `2d6+3`, e um tipo opcional) e **Shift+Enter** aplica cura. O campo continua focado para encadear valores. **Dano avançado** abre os componentes múltiplos, imunidade e RD; **Ajustar HP atual ou máximo** abre os ajustes, com campos e permissões independentes. Clique nos demais recursos para editá-los.
 
-Com a cor padrão, a barra de HP no painel fica verde acima de 50%, amarela até 25% e vermelha abaixo disso; cores escolhidas pelo mestre são mantidas. Tokens com HP 0 ou negativo aparecem como **CAÍDO**. O topo mostra a rodada e de quem é a vez, e o botão de desfazer indica qual ação será desfeita. Alterar o máximo preserva o HP atual, inclusive valores negativos e sobrevida. Só aparecem ações autorizadas. Os detalhes de um único cartão ficam abertos por vez.
+Com a cor padrão, a barra de HP no painel e no mapa fica verde acima de 50%, amarela até 25% e vermelha abaixo disso; cores escolhidas pelo mestre são mantidas. Tokens com HP 0 ou negativo aparecem como **CAÍDO**. O topo mostra a rodada e de quem é a vez, e o botão de desfazer indica qual ação será desfeita. Alterar o máximo preserva o HP atual, inclusive valores negativos e sobrevida. Só aparecem ações autorizadas. Os detalhes de um único cartão ficam abertos por vez.
 
 O mestre concede individualmente **Informar iniciativa**, **Aplicar dano**, **Aplicar cura**, **Ajustar HP atual**, **Ajustar HP máximo**, **Alterar condições** e **Encerrar o próprio turno**. Dano, cura, ajustes e condições não exigem responsabilidade pelo token; iniciativa e encerramento exigem. O token precisa estar visível no painel do jogador. As ações continuam disponíveis com HP em porcentagem ou oculto, sem revelar o resultado exato. Se condições estiverem ocultas, o jogador autorizado escolhe a definição e a operação sem ver condições aplicadas, stacks ou duração.
 
@@ -54,9 +54,13 @@ O botão **⋯ no cartão** reúne condições, defesas e, recolhidos, a posiç�
 
 ## Marcadores e posição
 
-No mapa, HP aparece como uma barra arredondada junto à borda do token, com o valor centralizado dentro dela. Números e contadores ficam em círculos ou cápsulas voltados para a imagem; barras adicionais ficam do lado externo. Valores longos e múltiplos contadores se distribuem em linhas. O conjunto acompanha a posição vertical, o alinhamento horizontal, o tamanho e a visibilidade escolhidos por cada participante.
+No mapa, HP aparece como uma barra arredondada junto à borda do token, com o valor centralizado dentro dela; no mapa, verde e amarelo usam tons mais escuros para o texto branco continuar legível. Números e contadores ficam em círculos ou cápsulas voltados para a imagem, em até duas linhas centralizadas (ou encostadas à esquerda/direita, conforme o alinhamento); o que passar disso vai para fora do token, depois das barras. Marcações desligadas aparecem com fundo escuro e `◯`. O alinhamento encosta o conjunto na borda escolhida por dentro do token, sem invadir o vizinho da grade; no tamanho médio a barra ocupa toda a largura e o alinhamento move as bolinhas. O conjunto acompanha a posição vertical, o alinhamento horizontal, o tamanho e a visibilidade escolhidos por cada participante.
 
 Quatro tipos: **barra atual/máximo**, **número**, **contador** e **marcação**. A barra de HP usa os próprios valores do combate; não existe um segundo HP.
+
+Cada marcador aceita uma **sigla no mapa** (até 5 caracteres) e uma **descrição** (até 200). A sigla aparece antes do valor na bolinha do token, como `CA 15`, para quem olha o mapa saber o que o número representa. A descrição aparece ao passar o mouse no marcador do painel e fica escrita nos detalhes do cartão, o que também funciona no celular. Quem não vê o marcador não vê a sigla nem a descrição.
+
+**Abrir na Rulebear**, no menu do botão direito de um token, abre o painel no cartão daquele token para qualquer participante. Para o mestre, um token que ainda não está no encontro abre a janela de adicionar. Clicar no retrato do cartão centraliza a câmera no token.
 
 Ajustes numéricos aceitam `=10`, `+2`, `-3`, `*2` e `/2`, sem executar código. Para atribuir um número negativo, use `=-3`. HP negativo aparece com a barra vazia. Um ajuste acima do máximo cria sobrevida: `25/20` representa 5 pontos temporários, destacados em azul. Recursos personalizados aceitam valores finitos; barras limitam apenas o preenchimento visual a 0–100%.
 
@@ -96,6 +100,8 @@ npm test
 npm run build:pages
 npm audit --audit-level=high
 ```
+
+**Prévia do mapa sem o Owlbear:** `npm run preview:map` gera capturas em `artifacts/map-preview/` (uma por grupo: HP, tipos de marcador, posição, tamanhos de token e vizinhos, visão do jogador, contraste com o mapa e zoom). Use `npm run preview:map -- hp tokens` para gerar só alguns grupos. A página interativa fica em `http://localhost:5174/map-preview.html` com `npm run dev`. Ela desenha as mesmas etiquetas que a Rulebear envia ao Owlbear, sobre tokens e mapas de exemplo próprios, e não entra no build publicado. Requer Chrome ou Edge; defina `CHROME_PATH` se o navegador estiver em outro caminho.
 
 Desenvolvimento: `http://localhost:5174/manifest.json`. O hostname `localhost` é necessário para a política CSP observada no Owlbear. O modo de demonstração `/action.html?mock=1` (ou `&role=player`) existe somente em desenvolvimento.
 

@@ -1,4 +1,4 @@
-import type { OwlbearGateway, ThemeMode } from "../src/owlbear/gateway";
+import { FALLBACK_THEMES, type OwlbearGateway, type PanelTheme } from "../src/owlbear/gateway";
 import type { Participant, RulebearSceneState, TokenView } from "../src/domain/types";
 import { createEmptyState } from "../src/state/schema";
 export class Network {
@@ -34,7 +34,10 @@ export class MemoryGateway implements OwlbearGateway {
   async getSelectedToken() { return this.network.tokens[0] ?? null; }
   async consumePendingToken() { return null; }
   onPendingToken() { return () => {}; }
-  async getThemeMode(): Promise<ThemeMode> { return "DARK"; }
+  async getTheme(): Promise<PanelTheme> { return FALLBACK_THEMES.DARK; }
   onThemeChange() { return () => {}; }
+  async setActionHeight() {}
+  focused: string[] = [];
+  async focusToken(tokenId: string) { this.focused.push(tokenId); }
   async setBadge() {}
 }
